@@ -1,0 +1,88 @@
+# Build and test for tongue's SDKs. emo pulls its task list from
+# desert-ant-core's shared model-sdk catalog; tongue defines its own because the
+# catalog assumes a Swift-native pipeline behind JNI plus a LiteRT inference
+# runtime, and this model has neither — the Kotlin and JavaScript SDKs are direct
+# ports, and there is nothing to hand an accelerator. See ANDROID.md.
+# No [tools] swift pin: the Swift suite runs under the host Xcode toolchain
+# (DEVELOPER_DIR below) and the Android cross-compile invokes swiftly directly for
+# the OSS 6.2.0 toolchain it needs, so mise has no Swift to manage.
+
+[vars]
+model = "tongue"
+product = "Tongue"
+
+[tasks.test]
+description = "Every suite: the golden vectors through all three ports"
+depends = ["test-swift", "test-kotlin", "test-js"]
+
+[tasks.test-swift]
+description = "SwiftPM suite (Apple platforms)"
+dir = "{{ config_root }}"
+run = """
+set -euo pipefail
+# XCTest needs the full Xcode toolchain; CommandLineTools does not ship it.
+if [ -d /Applications/Xcode.app ]; then export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer; fi
+# Drops JavaScriptKit from the graph, matching emo and desert-ant-core.
+export SWIFT_ANDROID_STATIC_BUILD=1
+swift test
+"""
+
+[tasks.test-kotlin]
+description = "Golden vectors through the Kotlin port (JVM + Android)"
+dir = "{{ config_root }}/packages/tongue-kotlin"
+run = """
+set -euo pipefail
+mkdir -p build
+kotlinc src/main/kotlin/ai/desertant/tongue/*.kt src/test/kotlin/ai/desertant/tongue/*.kt \
+  -include-runtime -d build/tongue-test.jar
+java -cp build/tongue-test.jar:src/main/resources:src/test/resources \
+  ai.desertant.tongue.GoldenVectorTestKt
+"""
+
+[tasks.test-js]
+description = "Golden vectors through the JavaScript port (browser + Node)"
+dir = "{{ config_root }}/packages/tongue-js"
+tools = { node = "22" }
+run = """
+set -euo pipefail
+npm install --silent
+npm test
+"""
+
+[tasks.gen-tables]
+description = "Regenerate the Unicode script tables in all three ports from the Python reference"
+dir = "{{ config_root }}"
+run = """
+set -euo pipefail
+REF="${TONGUE_REFERENCE:-../tongue-training}"
+python3 scripts/gen_swift_tables.py --reference "$REF"
+python3 scripts/gen_kotlin_tables.py --reference "$REF"
+python3 scripts/gen_ts_tables.py --reference "$REF"
+"""
+
+[tasks.android-natives]
+description = "Cross-compile the C ABI for Android (used by the Node native binding, not by the Kotlin SDK)"
+dir = "{{ config_root }}"
+run = """
+set -euo pipefail
+# The Kotlin SDK is a direct port and needs none of this. Kept because the same C
+# ABI backs a future Node native binding, where the ~51 MB static Swift runtime is
+# paid once on a server rather than in every app bundle.
+export SWIFT_ANDROID_STATIC_BUILD=1
+BUNDLE=$(ls -dt "$HOME/Library/org.swift.swiftpm/swift-sdks"/*android*24*.artifactbundle \
+                 "$HOME/.swiftpm/swift-sdks"/*android*24*.artifactbundle 2>/dev/null | head -1)
+[ -n "$BUNDLE" ] || { echo "error: install the API-24 Swift Android SDK first (see ANDROID.md)" >&2; exit 1; }
+for pair in "arm64-v8a:aarch64" "x86_64:x86_64"; do
+  abi=${pair%:*}; arch=${pair#*:}
+  libdir=$(dirname "$(find "$BUNDLE" -type d -name "swift_static-$arch" | head -1)")
+  ln -sfn "swift_static-$arch" "$libdir/swift_static"
+  swiftly run swift build -c release --product TongueAndroid \
+    --swift-sdk "$arch-unknown-linux-android24" \
+    -Xswiftc -static-stdlib -Xswiftc -resource-dir -Xswiftc "$libdir/swift_static" +6.2.0
+  dest="build/jniLibs/$abi"; mkdir -p "$dest"
+  cp ".build/$arch-unknown-linux-android24/release/libTongueAndroid.so" "$dest/"
+  strip_bin=$(find "$HOME/Library/Android/sdk/ndk" -name llvm-strip 2>/dev/null | head -1)
+  [ -n "$strip_bin" ] && "$strip_bin" --strip-unneeded "$dest/libTongueAndroid.so"
+done
+du -sh build/jniLibs/*
+"""

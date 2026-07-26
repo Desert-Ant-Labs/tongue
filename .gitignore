@@ -2,3 +2,8 @@
 .swiftpm/
 *.xcodeproj
 .DS_Store
+build/
+node_modules/
+dist/
+packages/tongue-kotlin/build/
+packages/tongue-js/package-lock.json

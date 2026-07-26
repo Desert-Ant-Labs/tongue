@@ -1,8 +1,18 @@
-# tongue — Swift SDK
+# tongue — SDKs for Apple, Android and the web
 
 On-device language identification for short text, across 83 languages. Names the
 language of a word, a phrase or a sentence in tens of microseconds, entirely on
 device.
+
+| platform | package | status |
+|---|---|---|
+| iOS · macOS · tvOS · watchOS · visionOS | this repo (SwiftPM) | golden vectors passing |
+| Android · JVM | [`packages/tongue-kotlin`](packages/tongue-kotlin) | golden vectors passing |
+| Browser · Node | [`packages/tongue-js`](packages/tongue-js) | golden vectors passing |
+
+Every platform is a direct port held to the same frozen specification, and all
+three replay the same golden vectors as the Python reference. Run everything with
+`mise run test`.
 
 ```swift
 import Tongue

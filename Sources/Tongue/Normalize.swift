@@ -1,5 +1,4 @@
 import Regex
-import TextNormalization
 
 // The pinned input normalizer, ported from the Python reference in
 // src/tongue_training/normalize.py. That module is a frozen specification, not
@@ -8,11 +7,9 @@ import TextNormalization
 // docs/normalizer.md plus golden/normalize_vectors.json, replayed by
 // TongueTests — change one and you change all of them, in the same commit.
 //
-// Built on desert-ant-core rather than Foundation so the pipeline stays pure
-// Swift and cross-compiles: on Android, Swift has no ICU, so `Regex` routes
-// through the host's java.util.regex and `String.nfc` through the host's
-// java.text.Normalizer. Using NSRegularExpression here directly would compile
-// on Apple and silently fail to build for Android.
+// Regex comes from desert-ant-core rather than Foundation, so the pattern work
+// stays platform-free: on Android core routes it through the host's
+// java.util.regex. NFC is local (see NFC.swift) only until core releases its own.
 //
 // Porting hazards this file is deliberate about:
 //

@@ -7,3 +7,6 @@ node_modules/
 dist/
 packages/tongue-kotlin/build/
 packages/tongue-js/package-lock.json
+
+# SwiftPM writes edited dependencies here (`swift package edit`)
+/Packages/

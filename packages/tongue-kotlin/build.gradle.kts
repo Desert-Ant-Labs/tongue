@@ -24,10 +24,8 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
-// The golden vectors are the cross-platform contract, so they run as the test task.
-sourceSets {
-    named("test") { resources.srcDir("src/test/resources") }
-}
+// src/test/resources is already a test resource root by convention; re-adding it
+// makes processTestResources see every vector file twice and fail on duplicates.
 
 tasks.register<JavaExec>("goldenVectors") {
     description = "Replay golden/ through this port; the cross-platform contract."

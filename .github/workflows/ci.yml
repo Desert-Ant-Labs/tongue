@@ -1,0 +1,105 @@
+# Validates every port in a clean environment. The golden vectors are the
+# cross-platform contract, so each job's job is to replay them: if any port drifts
+# from the Python reference, the model sees different features on that platform and
+# the implementations disagree silently.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swift:
+    name: Swift (Apple)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      # Resolves desert-ant-core from its released tag, which is the check that
+      # matters: local work went through `swift package edit` and once hid a
+      # dependency on an unreleased API.
+      - name: Test
+        run: swift test
+
+  kotlin:
+    name: Kotlin (JVM + Android)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build, test and stage the artifact
+        working-directory: packages/tongue-kotlin
+        # `check` depends on goldenVectors, so this replays the contract.
+        run: ./gradlew build publishToMavenLocal
+
+  javascript:
+    name: JavaScript (browser + Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test
+        working-directory: packages/tongue-js
+        run: |
+          npm install
+          npm test
+      # A package that tests green but does not install is not shippable, so pack
+      # it and use it the way a consumer would.
+      - name: Pack and consume the tarball
+        working-directory: packages/tongue-js
+        run: |
+          npm pack
+          mkdir -p /tmp/consumer && cd /tmp/consumer
+          npm init -y >/dev/null
+          npm install "$GITHUB_WORKSPACE/packages/tongue-js/"desert-ant-labs-tongue-*.tgz
+          cat > use.mjs <<'JS'
+          import { Tongue } from "@desert-ant-labs/tongue";
+          const tongue = await Tongue.load();
+          const checks = [["kann ich das haben", "de"], ["안녕하세요", "ko"], ["مرحبا كيف حالك اليوم", "ar"]];
+          for (const [text, want] of checks) {
+            const got = tongue.detect(text).language;
+            if (got !== want) { console.error(`detect(${text}) = ${got}, expected ${want}`); process.exit(1); }
+          }
+          console.log("packed tarball detects correctly");
+          JS
+          node use.mjs
+
+  tables-are-generated:
+    name: Unicode tables match the reference
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The tables are generated from the Python reference in three languages. If
+      # someone hand-edits one, regenerating produces a diff and this fails —
+      # which is the whole point of generating them.
+      - name: Check out the reference
+        uses: actions/checkout@v4
+        with:
+          repository: Desert-Ant-Labs/tongue-training
+          path: tongue-training
+          token: ${{ secrets.REFERENCE_REPO_TOKEN }}
+        continue-on-error: true
+      - name: Regenerate and diff
+        run: |
+          if [ ! -d tongue-training/src ]; then
+            echo "reference repo unavailable (private); skipping the generated-table check"
+            exit 0
+          fi
+          python3 scripts/gen_swift_tables.py --reference tongue-training
+          python3 scripts/gen_kotlin_tables.py --reference tongue-training
+          python3 scripts/gen_ts_tables.py --reference tongue-training
+          git diff --exit-code -- '*ScriptTables*' '*script-tables*' || {
+            echo "::error::generated tables differ from the reference; run 'mise run gen-tables'"
+            exit 1
+          }

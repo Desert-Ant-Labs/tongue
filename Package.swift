@@ -20,11 +20,12 @@ import Foundation
 // Python reference and the other SDKs; Tests/TongueTests replays golden/ so a
 // port cannot drift silently.
 //
-// Setting SWIFT_ANDROID_STATIC_BUILD drops JavaScriptKit from the dependency
-// graph (matching emo and desert-ant-core), which an Android static-stdlib link
-// requires and which also lets the package build on a 6.1 toolchain.
-let noJavaScriptKit = ProcessInfo.processInfo.environment["SWIFT_ANDROID_STATIC_BUILD"] != nil
-
+// No dependencies, deliberately. Reaching for desert-ant-core's host-delegated
+// Regex and NFC would only pay off on Android, and Android is served by the direct
+// Kotlin port in packages/tongue-kotlin — while core's JavaScriptKit dependency
+// imposes a Swift 6.2 toolchain floor on every consumer. Sources/TongueAndroid
+// (the C ABI for a future Node native binding) stays in the tree but out of this
+// manifest for the same reason; see ANDROID.md to re-enable it.
 let package = Package(
     name: "Tongue",
     platforms: [
@@ -33,38 +34,13 @@ let package = Package(
     ],
     products: [
         .library(name: "Tongue", targets: ["Tongue"]),
-        // Android JNI library, built by `mise run android-natives`. Also builds on
-        // a host triple, where only the C ABI compiles (AndroidJNI.swift is
-        // `#if os(Android)`), which is what lets it be smoke-tested on macOS.
-        .library(name: "TongueAndroid", type: .dynamic, targets: ["TongueAndroid"]),
-    ],
-    dependencies: [
-        .package(url: "https://github.com/Desert-Ant-Labs/desert-ant-core.git", from: "0.3.0"),
     ],
     targets: [
         .target(
             name: "Tongue",
-            dependencies: [
-                // Cross-platform regex (host-bridged on Android, where Swift has
-                // no ICU) and Unicode NFC. The pipeline uses no platform code.
-                .product(name: "Regex", package: "desert-ant-core"),
-                .product(name: "TextNormalization", package: "desert-ant-core"),
-                .product(name: "JSON", package: "desert-ant-core"),
-                .product(name: "PlatformSupport", package: "desert-ant-core"),
-            ],
             resources: [
                 .copy("Resources/tongue_int8.bin"),
                 .copy("Resources/tongue_meta.json"),
-            ]
-        ),
-        .target(
-            name: "TongueAndroid",
-            dependencies: [
-                "Tongue",
-                .product(name: "FFIBuffer", package: "desert-ant-core"),
-                .product(name: "HostBridge", package: "desert-ant-core",
-                         condition: .when(platforms: [.android])),
-                .product(name: "PlatformSupport", package: "desert-ant-core"),
             ]
         ),
         .testTarget(

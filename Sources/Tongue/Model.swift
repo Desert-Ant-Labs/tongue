@@ -1,22 +1,12 @@
-import JSON
-
-#if canImport(Darwin)
-import Darwin
-#elseif canImport(Android)
-import Android
-#elseif canImport(Glibc)
-import Glibc
-#endif
+import Foundation
 
 // The head. There is no inference runtime here and none is needed: a detection
 // is an int8 embedding gather, a sum over the n-grams present, one small matmul
 // and a masked softmax — a few thousand multiply-adds.
 //
-// Byte-oriented on purpose, matching emo: the pipeline takes `[UInt8]` and a
-// JSON string, never a URL, so it holds no platform code and cross-compiles as
-// pure Swift. Reading files is the caller's job, and Foundation appears only at
-// that edge (see Tongue.swift). `exp` comes from libm rather than Foundation for
-// the same reason.
+// Byte-oriented on purpose, matching emo: the core initializer takes `[UInt8]` and
+// a JSON string rather than a URL, so callers can supply a downloaded or embedded
+// model. File reading lives in TongueLoading.swift.
 //
 // Byte layout of tongue_int8.bin, as written by scripts/build_release.py:
 //
@@ -56,8 +46,11 @@ struct Metadata: Decodable, Sendable {
     }
 
     init(json: String) throws {
-        do { self = try JSONDecoder().decode(Metadata.self, from: json) }
-        catch { throw TongueError.malformedMetadata(String(describing: error)) }
+        do {
+            self = try JSONDecoder().decode(Metadata.self, from: Data(json.utf8))
+        } catch {
+            throw TongueError.malformedMetadata(String(describing: error))
+        }
     }
 }
 

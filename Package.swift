@@ -33,6 +33,10 @@ let package = Package(
     ],
     products: [
         .library(name: "Tongue", targets: ["Tongue"]),
+        // Android JNI library, built by `mise run android-natives`. Also builds on
+        // a host triple, where only the C ABI compiles (AndroidJNI.swift is
+        // `#if os(Android)`), which is what lets it be smoke-tested on macOS.
+        .library(name: "TongueAndroid", type: .dynamic, targets: ["TongueAndroid"]),
     ],
     dependencies: [
         .package(url: "https://github.com/Desert-Ant-Labs/desert-ant-core.git", from: "0.3.0"),
@@ -51,6 +55,16 @@ let package = Package(
             resources: [
                 .copy("Resources/tongue_int8.bin"),
                 .copy("Resources/tongue_meta.json"),
+            ]
+        ),
+        .target(
+            name: "TongueAndroid",
+            dependencies: [
+                "Tongue",
+                .product(name: "FFIBuffer", package: "desert-ant-core"),
+                .product(name: "HostBridge", package: "desert-ant-core",
+                         condition: .when(platforms: [.android])),
+                .product(name: "PlatformSupport", package: "desert-ant-core"),
             ]
         ),
         .testTarget(

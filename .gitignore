@@ -10,3 +10,7 @@ packages/tongue-js/package-lock.json
 
 # SwiftPM writes edited dependencies here (`swift package edit`)
 /Packages/
+.gradle/
+Examples/*/.build/
+Examples/*/build/
+Examples/*/.gradle/

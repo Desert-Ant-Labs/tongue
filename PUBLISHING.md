@@ -8,15 +8,24 @@ run rather than automated here.
 
 | | command | result |
 |---|---|---|
-| Apple | `mise run test-swift` | 7/7, no dependencies, default toolchain |
+| Apple | `mise run test-swift` | 7/7, no dependencies |
 | Android + JVM | `mise run test-kotlin` | `./gradlew build` green, golden vectors in `check` |
 | Browser + Node | `mise run test-js` | 5/5, packed tarball installs and detects |
-| Examples | `mise run examples` | all three print identical probabilities |
+| Console examples | `mise run examples` | both print identical probabilities |
+| iOS app | `xcodebuild -scheme TongueExample` | BUILD SUCCEEDED, `TongueExample.app` produced |
+| Android app | `./gradlew :app:assembleDebug` | 2.52 MB APK, model inside, **0** `lib/` entries |
 | CI | `.github/workflows/ci.yml` | four jobs; resolves deps from released tags |
 
 Consumer smoke tests both passed: `publishToMavenLocal` → `ai.desertant:tongue:0.1.0`
 (1.6 MB jar) used from a separate Kotlin program, and `npm pack` → tarball installed
 into a fresh project and used as `@desert-ant-labs/tongue`.
+
+Not verified: the Android app on a real device or emulator. It builds and packages,
+and the Kotlin port's golden vectors pass on the JVM, but Android's `java.text`
+and `java.util.regex` are ICU-backed and could in principle differ. `./gradlew
+:app:installDebug` against the `Medium_Phone_API_36.0` AVD is the one-command check.
+emo covers this with an instrumented test on Firebase Test Lab, which needs the AGP
+`androidTest` setup this package deliberately does not have.
 
 ## Remaining steps
 

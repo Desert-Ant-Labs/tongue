@@ -1,7 +1,5 @@
 // swift-tools-version: 6.1
 import PackageDescription
-import Foundation
-import Foundation
 
 // Tongue: on-device language identification for short text.
 //
@@ -27,10 +25,12 @@ import Foundation
 // current Xcode and costs the model nothing: accuracy, size and latency are
 // identical either way.
 //
-// SWIFT_ANDROID_STATIC_BUILD drops JavaScriptKit from the graph, which the Android
-// static-stdlib link needs (its swift-syntax macros conflict with -resource-dir)
-// and which also lets the package build on an older toolchain. Matches emo.
-let noJavaScriptKit = ProcessInfo.processInfo.environment["SWIFT_ANDROID_STATIC_BUILD"] != nil
+// Setting SWIFT_ANDROID_STATIC_BUILD drops JavaScriptKit from the graph, which the
+// Android static-stdlib link needs (its swift-syntax macros conflict with
+// -resource-dir) and which also lets the package build on an older toolchain. The
+// gating lives in desert-ant-core's own manifest, and SwiftPM evaluates every
+// manifest in one process environment, so exporting the variable is all it takes
+// here — no conditional of our own. Matches emo.
 
 let package = Package(
     name: "Tongue",

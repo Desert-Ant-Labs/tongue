@@ -20,12 +20,12 @@ depends = ["test-swift", "test-kotlin", "test-js"]
 description = "Run the runnable example on each platform"
 depends = ["example-swift", "example-kotlin"]
 
+# TongueExample (SwiftUI) and TongueAndroidExample are app projects, run from Xcode
+# and `./gradlew :app:installDebug`; only the two console examples are scriptable.
+
 [tasks.example-swift]
-dir = "{{ config_root }}/Examples/TongueExample"
-run = """
-if [ -d /Applications/Xcode.app ]; then export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer; fi
-swift run
-"""
+dir = "{{ config_root }}/Examples/TongueCLIExample"
+run = "bash ../../scripts/with-swift.sh run TongueCLIExample"
 
 [tasks.example-kotlin]
 dir = "{{ config_root }}/Examples/TongueKotlinExample"
@@ -43,26 +43,7 @@ node server.mjs
 [tasks.test-swift]
 description = "SwiftPM suite (Apple platforms)"
 dir = "{{ config_root }}"
-run = '''
-set -euo pipefail
-# XCTest ships with Xcode, not with CommandLineTools or the OSS toolchains, so
-# DEVELOPER_DIR must point at Xcode either way.
-if [ -d /Applications/Xcode.app ]; then export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer; fi
-# desert-ant-core needs 6.2 tooling to resolve. Use Xcode's swift when it is new
-# enough, else swiftly's OSS 6.2 compiler against Xcode's XCTest.
-version=$(swift --version 2>/dev/null | sed -n 's/.*Apple Swift version \([0-9]*\.[0-9]*\).*/\1/p')
-if [ -n "$version" ] && [ "$(printf '%s\n6.2' "$version" | sort -V | head -1)" = "6.2" ]; then
-    swift test
-elif command -v swiftly >/dev/null 2>&1; then
-    echo "Xcode ships Swift ${version:-unknown}; using swiftly's 6.2.0 for resolution"
-    . "$HOME/.swiftly/env.sh"
-    swiftly install 6.2.0 --assume-yes >/dev/null 2>&1 || true
-    swiftly run swift test +6.2.0
-else
-    echo "error: Swift 6.2+ required (desert-ant-core needs it). Update Xcode, or install swiftly." >&2
-    exit 1
-fi
-'''
+run = "bash scripts/with-swift.sh test"
 
 [tasks.test-kotlin]
 description = "Golden vectors through the Kotlin port (JVM + Android)"

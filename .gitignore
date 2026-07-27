@@ -1,6 +1,10 @@
 .build/
 .swiftpm/
-*.xcodeproj
+# Per-user Xcode state only. A bare `*.xcodeproj` would exclude
+# Examples/TongueExample, whose project file is checked in on purpose (emo does the
+# same) — without it there is no iOS app to open.
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
 .DS_Store
 build/
 node_modules/
@@ -18,3 +22,6 @@ packages/desert-ant-core
 Examples/*/.build/
 Examples/*/build/
 Examples/*/.gradle/
+# The examples resolve against the package next to them; the root Package.resolved
+# is the one that pins anything.
+Examples/*/Package.resolved

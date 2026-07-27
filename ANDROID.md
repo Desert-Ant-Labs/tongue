@@ -42,6 +42,23 @@ of semantics" — is already covered here by `golden/`: three vector files that 
 port must reproduce byte for byte, which is how the Swift and JavaScript ports are
 held honest. A Kotlin port would replay the same files.
 
-Keep `Sources/TongueAndroid` regardless: the C ABI is also what the Node native
-binding uses (`packages/tongue-node`, via koffi), where the size cost is paid once
-on a server rather than in every app bundle.
+Keep `Sources/TongueAndroid` regardless: the C ABI is also what a future Node
+native binding would use (alongside `packages/tongue-js`, via koffi), where the
+size cost is paid once on a server rather than in every app bundle.
+
+## Measured outcome
+
+The prediction above held. `Examples/TongueAndroidExample` is a real app whose only
+dependency is `ai.desertant:tongue`, and its debug APK is:
+
+| | |
+|---|---|
+| APK total | **2.52 MB** |
+| `tongue_int8.bin` inside it | 2,104,940 bytes |
+| `classes*.dex` | 2.42 MB |
+| `lib/` entries | **0** |
+
+Zero `lib/` entries is the claim made concrete: there is no native library in the
+APK, so no per-ABI multiplication and no ABI splits to publish. The 2 MB of weights
+account for essentially the whole download, against ~100 MB for the two-ABI JNI
+route this document rejected.

@@ -98,6 +98,23 @@ Regenerate the Unicode tables rather than editing them:
 python3 scripts/gen_swift_tables.py --reference ../tongue-training
 ```
 
+## Examples
+
+`Examples/` has one runnable project per platform.
+
+| | | run with |
+|---|---|---|
+| `TongueExample` | SwiftUI iOS app | open in Xcode |
+| `TongueAndroidExample` | Android app | `./gradlew :app:installDebug` |
+| `TongueWebExample` | browser page | `mise run example-web` |
+| `TongueCLIExample` | console, Apple | `mise run example-swift` |
+| `TongueKotlinExample` | console, JVM | `mise run example-kotlin` |
+
+The two console examples print identical probabilities for the same inputs, which
+is the quickest way to see the ports agree. The two app examples both update as you
+type, on the main thread, with no debounce — a detection is arithmetic, so there is
+nothing to await.
+
 ## Tests
 
 ```

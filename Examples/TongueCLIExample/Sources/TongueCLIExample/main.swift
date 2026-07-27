@@ -2,8 +2,8 @@ import Tongue
 
 // Identify the language of each argument, or of a built-in spread of scripts.
 //
-//   swift run TongueExample
-//   swift run TongueExample "kann ich das haben" "안녕하세요"
+//   swift run TongueCLIExample
+//   swift run TongueCLIExample "kann ich das haben" "안녕하세요"
 
 let samples = [
     "je voudrais un café au lait",

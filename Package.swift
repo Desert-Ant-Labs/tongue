@@ -56,6 +56,11 @@ let package = Package(
                 // no ICU. The pipeline itself stays free of platform code.
                 .product(name: "Regex", package: "desert-ant-core"),
                 .product(name: "PlatformSupport", package: "desert-ant-core"),
+                // The usage turnstile. emo, redact and shapes get this for free
+                // because Inference depends on it and wraps every session; this
+                // model has no inference runtime, so it is wired directly. See
+                // docs/USAGE.md.
+                .product(name: "Usage", package: "desert-ant-core"),
             ],
             resources: [
                 .copy("Resources/tongue_int8.bin"),

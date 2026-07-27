@@ -12,6 +12,13 @@
 model = "tongue"
 product = "Tongue"
 
+[env]
+# Every task in this repo runs with the usage turnstile off. Without it, each
+# `mise run test` and every CI job would post a real load event and count this
+# repo's own machines as billable devices. Consumers get reporting on by default;
+# see docs/USAGE.md.
+DAL_USAGE_DISABLED = "1"
+
 [tasks.test]
 description = "Every suite: the golden vectors through all three ports"
 depends = ["test-swift", "test-kotlin", "test-js"]

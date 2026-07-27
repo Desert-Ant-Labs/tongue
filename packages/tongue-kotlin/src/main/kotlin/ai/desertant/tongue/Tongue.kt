@@ -1,5 +1,7 @@
 package ai.desertant.tongue
 
+import ai.desertant.tongue.usage.UsageTurnstile
+
 /**
  * On-device language identification for short text, across 83 languages.
  *
@@ -25,31 +27,50 @@ package ai.desertant.tongue
 public class Tongue internal constructor(
     private val metadata: Metadata,
     private val weights: Weights,
+    private val usage: UsageTurnstile? = null,
 ) {
     public companion object {
-        /** Load the model bundled in this artifact's resources. */
+        /**
+         * Load the model bundled in this artifact's resources.
+         *
+         * On Android, pass the `Context` overload instead: without one there is
+         * nowhere durable to keep the usage device id, so every process looks like
+         * a new device. See docs/USAGE.md.
+         */
         @JvmStatic
-        public fun bundled(): Tongue {
+        public fun bundled(): Tongue = bundled(null)
+
+        /**
+         * Load the bundled model, giving usage tracking somewhere to persist.
+         *
+         * `context` is an `android.content.Context`, typed as `Any` so this stays
+         * a plain jar that also runs on a bare JVM — it is never compiled against
+         * the Android SDK. Anything else is ignored.
+         */
+        @JvmStatic
+        public fun bundled(context: Any?): Tongue {
             val loader = Tongue::class.java.classLoader
             val metadataJson = loader.getResourceAsStream("tongue_meta.json")?.use {
                 it.readBytes().toString(Charsets.UTF_8)
             } ?: throw TongueException("tongue_meta.json is missing from the artifact resources")
             val weightBytes = loader.getResourceAsStream("tongue_int8.bin")?.use { it.readBytes() }
                 ?: throw TongueException("tongue_int8.bin is missing from the artifact resources")
-            return of(metadataJson, weightBytes)
+            return of(metadataJson, weightBytes, context)
         }
 
         /** Load from raw bytes, for an on-demand download or a custom build. */
         @JvmStatic
-        public fun of(metadataJson: String, weightBytes: ByteArray): Tongue {
+        @JvmOverloads
+        public fun of(metadataJson: String, weightBytes: ByteArray, context: Any? = null): Tongue {
             val metadata = Metadata.parse(metadataJson)
-            return Tongue(metadata, Weights(weightBytes, metadata))
+            return Tongue(metadata, Weights(weightBytes, metadata), UsageTurnstile.create(context))
         }
     }
 
     /** Identify the language of a short string. */
     @JvmOverloads
     public fun detect(text: String, topK: Int = 3): Detection {
+        usage?.record()
         val normalized = Normalizer.normalize(text)
         val route = Router.route(normalized)
 

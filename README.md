@@ -138,6 +138,18 @@ is often genuinely ambiguous; Malay and Indonesian are not reliably separable at
 this size; Mongolian works only in the traditional script; and brand names and
 version strings are not language at all.
 
+## Usage reporting
+
+Detection is entirely on device: no text ever leaves it, and the pipeline never
+touches the network. Separately, the SDK reports **one event per device per day**
+so the licence can be metered — a generated UUID, the app's bundle id or package
+name, and how many detections happened. No text, no results, nothing about the
+user or the machine.
+
+Switch it off with `DAL_USAGE_DISABLED=1` and no client is built at all.
+
+Full detail, including the wire format: [docs/USAGE.md](docs/USAGE.md).
+
 ## Licence
 
 [Desert Ant Labs Source-Available Licence](https://license.desertant.com/1.0).

@@ -53,10 +53,16 @@ dependency is `ai.desertant:tongue`, and its debug APK is:
 
 | | |
 |---|---|
-| APK total | **2.52 MB** |
-| `tongue_int8.bin` inside it | 2,104,940 bytes |
-| `classes*.dex` | 2.42 MB |
+| APK total | **2.54 MB** |
+| `tongue_int8.bin` inside it | 2,104,940 bytes (1.67 MB compressed) |
+| `classes*.dex` | 2.46 MB (852 KB compressed) |
 | `lib/` entries | **0** |
+
+Measure from a `clean` build. An incremental one reads ~3.3 MB from stale dex and
+padding, which is not what a consumer downloads.
+
+That total includes the usage turnstile (docs/USAGE.md), which costs about 19 KB —
+the APK was 2.52 MB before it.
 
 Zero `lib/` entries is the claim made concrete: there is no native library in the
 APK, so no per-ABI multiplication and no ABI splits to publish. The 2 MB of weights

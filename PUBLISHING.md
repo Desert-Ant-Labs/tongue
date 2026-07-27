@@ -29,25 +29,32 @@ into a fresh project and used as `@desert-ant-labs/tongue`.
    the unified Emo repository", and JitPack carries no builds for the monorepo. The
    org publishes to Maven Central and npm from the monorepo, so we do the same.
 
-2. **Maven Central.** `ai.desertant` is an established, verified namespace — `core`,
-   `emo`, `redact`, `shapes` and the convention plugin are all published under it —
-   so nothing needs registering. What is needed is the release credentials, which
-   live with whoever runs the releases:
+2. **Grant this repo the organisation publishing secrets.** `MAVEN_CENTRAL_USERNAME`,
+   `MAVEN_CENTRAL_PASSWORD`, `SIGNING_IN_MEMORY_KEY`, `SIGNING_IN_MEMORY_KEY_PASSWORD`
+   and `NPM_TOKEN` exist as Desert-Ant-Labs organisation secrets with *selected
+   repositories* visibility, so `Desert-Ant-Labs/tongue` has to be added to that
+   selection (Org Settings → Secrets and variables → Actions → each secret).
 
-       ORG_GRADLE_PROJECT_mavenCentralUsername=...   # Central Portal token
-       ORG_GRADLE_PROJECT_mavenCentralPassword=...
-       ORG_GRADLE_PROJECT_signingInMemoryKey=...     # ASCII-armoured GPG secret key
-       ORG_GRADLE_PROJECT_signingInMemoryKeyPassword=...
+   `ai.desertant` is already an established, verified Maven namespace — `core`,
+   `emo`, `redact`, `shapes` and the convention plugin all publish under it — and
+   `@desert-ant-labs` already publishes five npm packages, so nothing needs
+   registering with Sonatype or npm. Only the grant is missing.
 
-       cd packages/tongue-kotlin && ./gradlew publishToMavenCentral
+3. **Tag the release.** Both registries then publish from CI; no key ever leaves
+   GitHub:
 
-   `signAllPublications()` is applied only when `signingInMemoryKey` is present, so
-   local builds and CI stay green without keys — same guard the shared plugin uses.
+       mise run set-version 0.1.0    # bumps both artifacts, already at 0.1.0
+       git tag v0.1.0 && git push --tags
 
-3. **npm.** `@desert-ant-labs` already publishes `emo`, `shapes`, `redact`, `clear`
-   and `desert-ant-web`, so this needs only an org token:
+   `publish-android.yml` and `publish-npm.yml` each gate on the tag naming their
+   artifact's version *and* on that package's files having changed since the previous
+   tag, so a blanket version bump republishes nothing. This is core's release model,
+   ported. The Swift SDK needs no step at all — SwiftPM resolves the tag directly.
 
-       cd packages/tongue-js && npm publish --access public
+   To publish by hand instead, put the same credentials in `mise.local.toml` and run
+   `mise run publish-android` / `mise run publish-npm`. `signAllPublications()` is
+   applied only when `signingInMemoryKey` is present, so ordinary builds and CI stay
+   green without keys — the same guard the shared convention plugin uses.
 
 4. **desert-ant-core**: a branch adding `String.nfc` is committed locally but not
    pushed. It is not required by anything shipping — the Swift package keeps NFC

@@ -1,0 +1,102 @@
+name: Publish npm
+
+# Publish the @desert-ant-labs/tongue npm package when a release tag (vX.Y.Z) is
+# pushed, but only if the package actually changed. It runs `mise run publish-npm`,
+# whose npm `prepare` script compiles the TypeScript and stages the model.
+#
+# Release model, matching desert-ant-core: `mise run set-version X.Y.Z` bumps every
+# artifact's version, you commit and push `vX.Y.Z`, and each publish workflow ships
+# only the artifact whose content changed since the previous tag. A pure version
+# bump does not count as a change, so a blanket set-version that touches nothing
+# but version lines republishes nothing. Published versions may skip (an unchanged
+# artifact keeps its last published version until it next changes).
+#
+# Credentials are the Desert-Ant-Labs organisation secrets, surfaced through the
+# `npm` GitHub Environment:
+#   NPM_TOKEN  npm automation token with publish rights on @desert-ant-labs
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: publish-npm-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: should this tag publish the npm package?
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.g.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags, to diff against the previous tag
+
+      - id: g
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          MANIFEST=packages/tongue-js/package.json
+          VERSION=$(sed -n 's/^  "version": "\([^"]*\)",$/\1/p' "$MANIFEST")
+          [ -n "$VERSION" ] || { echo "no version in $MANIFEST" >&2; exit 1; }
+
+          # The tag must name this artifact's version (set-version bumps it).
+          if [ "${TAG#v}" != "$VERSION" ]; then
+            echo "tag ${TAG} != @desert-ant-labs/tongue ${VERSION}; skipping (not this artifact's release)."
+            echo "publish=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+          if [ -z "$PREV" ]; then
+            echo "no previous tag; publishing ${VERSION}."
+            echo "publish=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # Publish only if the JS package actually changed since the previous tag,
+          # counting a pure version bump in package.json as no change (so a blanket
+          # set-version that only touches version lines republishes nothing). Any
+          # other changed file - including the model binary - counts.
+          files=$(git diff --name-only "$PREV" "$TAG" -- packages/tongue-js/)
+          if [ -z "$files" ]; then
+            publish=false
+          elif [ "$files" = "$MANIFEST" ]; then
+            body=$(git diff "$PREV" "$TAG" -- "$MANIFEST" \
+              | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' | grep -vE '^[+-]  "version": "' || true)
+            [ -n "$body" ] && publish=true || publish=false
+          else
+            publish=true
+          fi
+
+          if [ "$publish" = true ]; then
+            echo "packages/tongue-js/ changed since ${PREV}; publishing ${VERSION}."
+          else
+            echo "packages/tongue-js/ unchanged since ${PREV} (only the version bump, if any); skipping."
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish @desert-ant-labs/tongue to npm
+    needs: gate
+    if: needs.gate.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@v4
+
+      # Just the mise binary; the publish-npm task pulls Node on demand.
+      - name: Set up mise
+        uses: jdx/mise-action@v2
+        with:
+          install: false
+
+      - name: Publish to npm
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: mise run publish-npm

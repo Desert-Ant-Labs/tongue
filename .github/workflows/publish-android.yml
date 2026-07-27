@@ -1,0 +1,110 @@
+name: Publish Android
+
+# Publish the ai.desertant:tongue artifact to Maven Central when a release tag
+# (vX.Y.Z) is pushed, but only if the artifact actually changed. The artifact is a
+# plain Kotlin jar, so this needs no emulator, no Android SDK and no Swift
+# toolchain: it runs `mise run publish-android` on a mise JDK.
+#
+# Release model, matching desert-ant-core: `mise run set-version X.Y.Z` bumps every
+# artifact's version, you commit and push `vX.Y.Z`, and each publish workflow ships
+# only the artifact whose content changed since the previous tag. A pure version
+# bump does not count as a change, so a blanket set-version that touches nothing
+# but version lines republishes nothing. Published versions may skip (an unchanged
+# artifact keeps its last published version until it next changes).
+#
+# Credentials are the Desert-Ant-Labs organisation secrets, surfaced through the
+# `maven-central` GitHub Environment:
+#   MAVEN_CENTRAL_USERNAME          Central portal token username
+#   MAVEN_CENTRAL_PASSWORD          Central portal token password
+#   SIGNING_IN_MEMORY_KEY           ASCII-armored GPG private key (multiline)
+#   SIGNING_IN_MEMORY_KEY_PASSWORD  passphrase for that key
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: publish-android-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: should this tag publish the Maven artifact?
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.g.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags, to diff against the previous tag
+
+      - id: g
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          BUILD=packages/tongue-kotlin/build.gradle.kts
+          VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' "$BUILD")
+          [ -n "$VERSION" ] || { echo "no version in $BUILD" >&2; exit 1; }
+
+          # The tag must name this artifact's version (set-version bumps it).
+          if [ "${TAG#v}" != "$VERSION" ]; then
+            echo "tag ${TAG} != ai.desertant:tongue ${VERSION}; skipping (not this artifact's release)."
+            echo "publish=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+          if [ -z "$PREV" ]; then
+            echo "no previous tag; publishing ${VERSION}."
+            echo "publish=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # Publish only if the Kotlin package actually changed since the previous
+          # tag, counting a pure version bump in build.gradle.kts as no change (so a
+          # blanket set-version that only touches version lines republishes
+          # nothing). Any other changed file - including the model binary - counts.
+          files=$(git diff --name-only "$PREV" "$TAG" -- packages/tongue-kotlin/)
+          if [ -z "$files" ]; then
+            publish=false
+          elif [ "$files" = "$BUILD" ]; then
+            body=$(git diff "$PREV" "$TAG" -- "$BUILD" \
+              | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' | grep -vE '^[+-]version = "' || true)
+            [ -n "$body" ] && publish=true || publish=false
+          else
+            publish=true
+          fi
+
+          if [ "$publish" = true ]; then
+            echo "packages/tongue-kotlin/ changed since ${PREV}; publishing ${VERSION}."
+          else
+            echo "packages/tongue-kotlin/ unchanged since ${PREV} (only the version bump, if any); skipping."
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish ai.desertant:tongue to Maven Central
+    needs: gate
+    if: needs.gate.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment: maven-central
+    steps:
+      - uses: actions/checkout@v4
+
+      # Just the mise binary; skip installing the config's [tools], which this
+      # JVM-only publish does not need. The task pulls temurin-21 on demand.
+      - name: Set up mise
+        uses: jdx/mise-action@v2
+        with:
+          install: false
+
+      - name: Publish to Maven Central
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
+        run: mise run publish-android

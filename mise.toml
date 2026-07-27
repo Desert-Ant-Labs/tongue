@@ -3,9 +3,10 @@
 # catalog assumes a Swift-native pipeline behind JNI plus a LiteRT inference
 # runtime, and this model has neither — the Kotlin and JavaScript SDKs are direct
 # ports, and there is nothing to hand an accelerator. See ANDROID.md.
-# No [tools] swift pin: the Swift suite runs under the host Xcode toolchain
-# (DEVELOPER_DIR below) and the Android cross-compile invokes swiftly directly for
-# the OSS 6.2.0 toolchain it needs, so mise has no Swift to manage.
+# Swift 6.2 is the floor, because desert-ant-core depends on JavaScriptKit, whose
+# manifest needs 6.2 tooling. emo carries the same floor (its mise pins 6.3.3).
+# mise's own swift provider has no macOS build, so the tasks below locate a 6.2
+# toolchain themselves: a current Xcode if it has one, otherwise swiftly.
 
 [vars]
 model = "tongue"
@@ -42,12 +43,26 @@ node server.mjs
 [tasks.test-swift]
 description = "SwiftPM suite (Apple platforms)"
 dir = "{{ config_root }}"
-run = """
+run = '''
 set -euo pipefail
-# XCTest needs the full Xcode toolchain; CommandLineTools does not ship it.
+# XCTest ships with Xcode, not with CommandLineTools or the OSS toolchains, so
+# DEVELOPER_DIR must point at Xcode either way.
 if [ -d /Applications/Xcode.app ]; then export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer; fi
-swift test
-"""
+# desert-ant-core needs 6.2 tooling to resolve. Use Xcode's swift when it is new
+# enough, else swiftly's OSS 6.2 compiler against Xcode's XCTest.
+version=$(swift --version 2>/dev/null | sed -n 's/.*Apple Swift version \([0-9]*\.[0-9]*\).*/\1/p')
+if [ -n "$version" ] && [ "$(printf '%s\n6.2' "$version" | sort -V | head -1)" = "6.2" ]; then
+    swift test
+elif command -v swiftly >/dev/null 2>&1; then
+    echo "Xcode ships Swift ${version:-unknown}; using swiftly's 6.2.0 for resolution"
+    . "$HOME/.swiftly/env.sh"
+    swiftly install 6.2.0 --assume-yes >/dev/null 2>&1 || true
+    swiftly run swift test +6.2.0
+else
+    echo "error: Swift 6.2+ required (desert-ant-core needs it). Update Xcode, or install swiftly." >&2
+    exit 1
+fi
+'''
 
 [tasks.test-kotlin]
 description = "Golden vectors through the Kotlin port (JVM + Android)"

@@ -32,7 +32,10 @@ multiply-adds. The 2 MB weights ship inside the package.
 .package(url: "https://github.com/Desert-Ant-Labs/tongue.git", from: "0.1.0")
 ```
 
-Requires iOS 16 / macOS 13 / tvOS 16 / watchOS 9 / visionOS 1.
+Requires iOS 16 / macOS 13 / tvOS 16 / watchOS 9 / visionOS 1, and **Swift 6.2+**
+(a current Xcode). The floor comes from [desert-ant-core](https://github.com/Desert-Ant-Labs/desert-ant-core),
+the shared primitives every Desert Ant model SDK builds on; emo and toxic carry the
+same requirement.
 
 ## Saying "I don't know"
 

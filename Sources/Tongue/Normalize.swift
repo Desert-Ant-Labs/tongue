@@ -1,4 +1,4 @@
-import Foundation
+import Regex
 
 // The pinned input normalizer, ported from the Python reference in
 // src/tongue_training/normalize.py. That module is a frozen specification, not
@@ -7,12 +7,10 @@ import Foundation
 // docs/normalizer.md plus golden/normalize_vectors.json, replayed by
 // TongueTests — change one and you change all of them, in the same commit.
 //
-// Foundation-only, and therefore dependency-free. This package targets Apple
-// platforms; Android is served by the direct Kotlin port in
-// packages/tongue-kotlin and the web by packages/tongue-js, so there is nothing
-// to gain from desert-ant-core's host-delegated Regex here — and pulling it in
-// costs consumers a Swift 6.2 toolchain floor, since core depends on
-// JavaScriptKit. See ANDROID.md.
+// Regex comes from desert-ant-core, the shared primitive every model SDK uses: on
+// Android it routes through the host's java.util.regex, so the pipeline holds no
+// platform code. NFC is still local (see NFC.swift) only because core's `nfc` is
+// unreleased; that file documents how to delete itself once it ships.
 //
 // Porting hazards this file is deliberate about:
 //
@@ -34,14 +32,18 @@ public enum Normalizer {
 
     // Order is part of the contract; see `normalize(_:)`.
     //
-    // Compiled once: rebuilding five expressions per call would dominate a
-    // detection that otherwise costs tens of microseconds. `NSRegularExpression`
-    // is documented immutable and thread-safe, so sharing them is safe.
-    private static let url = pattern(#"(?:https?://|www\.)\S+"#, ignoringCase: true)
-    private static let email = pattern(#"\S+@\S+\.\S+"#)
-    private static let mention = pattern(#"[@#]\w+"#)
-    private static let digits = pattern(#"\d+"#)
-    private static let whitespace = pattern(#"\s+"#)
+    // `nonisolated(unsafe)` because `Pattern` is not `Sendable`: its wasm engine
+    // wraps a `JSObject`, which genuinely is not, so the type cannot conform
+    // unconditionally. Sharing these is safe regardless — each is immutable after
+    // construction, the Foundation engine wraps an `NSRegularExpression`
+    // (documented thread-safe), the Android engine holds a String and a Bool, and
+    // wasm is single-threaded. Compiling them once matters: rebuilding five per
+    // call would dominate a detection that costs tens of microseconds.
+    private nonisolated(unsafe) static let url = pattern(#"(?:https?://|www\.)\S+"#, ignoringCase: true)
+    private nonisolated(unsafe) static let email = pattern(#"\S+@\S+\.\S+"#)
+    private nonisolated(unsafe) static let mention = pattern(#"[@#]\w+"#)
+    private nonisolated(unsafe) static let digits = pattern(#"\d+"#)
+    private nonisolated(unsafe) static let whitespace = pattern(#"\s+"#)
 
     // Emoji, symbol modifiers and invisible formatting characters: they carry no
     // language signal but do perturb the n-gram bag.
@@ -49,17 +51,24 @@ public enum Normalizer {
         .otherSymbol, .modifierSymbol, .format, .privateUse, .unassigned,
     ]
 
-    private static func pattern(_ source: String, ignoringCase: Bool = false) -> NSRegularExpression {
+    private static func pattern(_ source: String, ignoringCase: Bool = false) -> Pattern {
         // Force-try: these are literals in this file, so a bad pattern is a
         // programming error the first test run catches, not a runtime path.
-        try! NSRegularExpression(pattern: source, options: ignoringCase ? [.caseInsensitive] : [])
+        let compiled = try! Pattern(source)
+        return ignoringCase ? compiled.ignoresCase() : compiled
     }
 
     /// Replace every match with a single space.
-    private static func replacingMatches(_ expression: NSRegularExpression, in text: String) -> String {
-        expression.stringByReplacingMatches(
-            in: text, range: NSRange(text.startIndex..., in: text), withTemplate: " "
-        )
+    ///
+    /// `Regex` reports match ranges rather than offering substitution, so this
+    /// walks the matches in reverse and splices — reverse order keeps the earlier
+    /// indices valid as the string is mutated.
+    private static func replacingMatches(_ pattern: Pattern, in text: String) -> String {
+        let matches = pattern.matches(in: text)
+        guard !matches.isEmpty else { return text }
+        var result = text
+        for match in matches.reversed() { result.replaceSubrange(match.range, with: " ") }
+        return result
     }
 
     /// Apply the frozen normalization pipeline.
@@ -86,8 +95,14 @@ public enum Normalizer {
         return String(String.UnicodeScalarView(result.unicodeScalars.prefix(maxCharacters)))
     }
 
+    /// Hand-rolled so this file needs no Foundation: `Character.isWhitespace` is
+    /// stdlib, and the only whitespace left by step 6 is the single spaces it
+    /// collapsed to.
     private static func trimmed(_ text: String) -> String {
-        text.trimmingCharacters(in: .whitespaces)
+        var slice = Substring(text)
+        while let first = slice.first, first.isWhitespace { slice.removeFirst() }
+        while let last = slice.last, last.isWhitespace { slice.removeLast() }
+        return String(slice)
     }
 
     /// Whitespace tokens of already-normalized text.

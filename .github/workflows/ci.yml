@@ -20,6 +20,21 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      # desert-ant-core needs Swift 6.2 tooling to resolve (it depends on
+      # JavaScriptKit), the same floor emo carries. Pin the Xcode that ships it
+      # rather than trusting the runner default.
+      - name: Select a Swift 6.2 toolchain
+        run: |
+          for x in /Applications/Xcode_26*.app /Applications/Xcode.app; do
+            [ -d "$x" ] || continue
+            v=$(DEVELOPER_DIR="$x/Contents/Developer" swift --version 2>/dev/null \
+                | sed -n 's/.*Apple Swift version \([0-9]*\.[0-9]*\).*/\1/p')
+            if [ -n "$v" ] && [ "$(printf '%s\n6.2' "$v" | sort -V | head -1)" = "6.2" ]; then
+              echo "DEVELOPER_DIR=$x/Contents/Developer" >> "$GITHUB_ENV"
+              echo "using $x (Swift $v)"; exit 0
+            fi
+          done
+          echo "::error::no Swift 6.2+ toolchain on this runner"; exit 1
       # Resolves desert-ant-core from its released tag, which is the check that
       # matters: local work went through `swift package edit` and once hid a
       # dependency on an unreleased API.

@@ -8,8 +8,12 @@ dist/
 packages/tongue-kotlin/build/
 packages/tongue-js/package-lock.json
 
-# SwiftPM writes edited dependencies here (`swift package edit`)
-/Packages/
+# `swift package edit` writes a checkout under Packages/. On a case-insensitive
+# filesystem git also matches ignore rules case-insensitively, so a bare
+# `/Packages/` silently ignores our own packages/ tree — which is how the Gradle
+# wrapper went missing. Name the checkout instead; it cannot collide with a real
+# file because our packages are tongue-js and tongue-kotlin.
+packages/desert-ant-core
 .gradle/
 Examples/*/.build/
 Examples/*/build/

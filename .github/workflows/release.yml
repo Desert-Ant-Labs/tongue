@@ -1,0 +1,79 @@
+name: Release
+
+# Creates the GitHub Release for a vX.Y.Z tag, and names the packages that tag
+# shipped. Publishing itself lives in publish-android.yml and publish-npm.yml,
+# which gate independently on what changed.
+#
+#   mise run set-version X.Y.Z && git tag vX.Y.Z && git push origin vX.Y.Z
+#
+# emo and the other model SDKs get this from desert-ant-core's reusable
+# `model-sdk-release.yml`, which is not usable here: its `android` job cross-
+# compiles Swift JNI natives and builds an AAR (`mise run android-natives` then
+# `build-android`), and its npm path needs `node-natives` plus a WebAssembly
+# `build-web` staged into `packages/<model>-node/native/`. This SDK has no native
+# library, no tflite and no wasm — see ANDROID.md — so those jobs have nothing to
+# run. This file mirrors that workflow's `release` job, which is the part that is
+# architecture-independent.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # create the GitHub Release
+
+jobs:
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags, to diff against the previous tag
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $TAG already exists; nothing to do."; exit 0
+          fi
+          VER="${TAG#v}"
+
+          # Name only the artifacts this tag actually ships, on the same rule the
+          # publish workflows gate on: the package's files changed since the
+          # previous tag, a pure version bump not counting.
+          changed() {
+            local dir="$1" manifest="$2" pattern="$3" prev files
+            prev=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+            [ -z "$prev" ] && return 0
+            files=$(git diff --name-only "$prev" "$TAG" -- "$dir")
+            [ -z "$files" ] && return 1
+            [ "$files" != "$manifest" ] && return 0
+            git diff "$prev" "$TAG" -- "$manifest" | grep -E '^[+-]' \
+              | grep -vE '^(\+\+\+|---)' | grep -qvE "$pattern"
+          }
+
+          notes=$(mktemp)
+          {
+            echo "## Packages"
+            echo
+            echo "- SwiftPM: \`.package(url: \"https://github.com/${GITHUB_REPOSITORY}.git\", from: \"${VER}\")\`"
+            and=false; npm=false
+            changed packages/tongue-kotlin packages/tongue-kotlin/build.gradle.kts '^[+-]version = "' && and=true
+            changed packages/tongue-js packages/tongue-js/package.json '^[+-]  "version": "' && npm=true
+            [ "$and" = true ] && echo "- Android and JVM: \`ai.desertant:tongue:${VER}\` (Maven Central)"
+            [ "$npm" = true ] && echo "- npm: \`@desert-ant-labs/tongue@${VER}\`"
+            if [ "$and" != true ] && [ "$npm" != true ]; then
+              echo
+              echo "_SwiftPM-only release; the Maven and npm artifacts did not change._"
+            fi
+          } > "$notes"
+
+          jq -n --arg tag "$TAG" --arg name "Tongue $VER" --rawfile body "$notes" \
+            '{tag_name: $tag, name: $name, body: $body, generate_release_notes: true}' \
+            | gh api "repos/${GITHUB_REPOSITORY}/releases" --input - >/dev/null
+          echo "created release $TAG"

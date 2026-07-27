@@ -57,8 +57,16 @@ emo covers this with an instrumented test on Firebase Test Lab, which needs the 
 
    `publish-android.yml` and `publish-npm.yml` each gate on the tag naming their
    artifact's version *and* on that package's files having changed since the previous
-   tag, so a blanket version bump republishes nothing. This is core's release model,
-   ported. The Swift SDK needs no step at all — SwiftPM resolves the tag directly.
+   tag, so a blanket version bump republishes nothing. `release.yml` creates the
+   GitHub Release and names whichever packages that tag shipped. The Swift SDK needs
+   no publish step at all — SwiftPM resolves the tag directly.
+
+   emo gets all three from desert-ant-core's reusable `model-sdk-release.yml`. That
+   workflow does not fit here: its Android job cross-compiles Swift JNI natives and
+   builds an AAR, and its npm job needs per-platform native cores plus a WebAssembly
+   build staged into `packages/<model>-node/native/`. This SDK has none of those (see
+   ANDROID.md), so the equivalent is assembled locally instead — same trigger, same
+   gating rule, same secrets.
 
    To publish by hand instead, put the same credentials in `mise.local.toml` and run
    `mise run publish-android` / `mise run publish-npm`. `signAllPublications()` is

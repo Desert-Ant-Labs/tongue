@@ -20,22 +20,34 @@ into a fresh project and used as `@desert-ant-labs/tongue`.
 
 ## Remaining steps
 
-1. **Create the repositories.** `tongue` is the monorepo (Swift at root, plus
-   `packages/` and `Examples/`), matching `emo`. SwiftPM installs straight from it,
-   so that alone ships the Apple SDK.
+1. ~~**Create the repository.**~~ Done: [Desert-Ant-Labs/tongue](https://github.com/Desert-Ant-Labs/tongue)
+   is the monorepo (Swift at root, plus `packages/` and `Examples/`), matching `emo`.
+   SwiftPM installs straight from it, so that alone ships the Apple SDK.
 
-       gh repo create Desert-Ant-Labs/tongue --public --source=. --push
+   No separate `tongue-kotlin`/`tongue-js` distribution repos: `emo-kotlin` and
+   `emo-js` still exist but are deprecated stubs reading "This package has moved to
+   the unified Emo repository", and JitPack carries no builds for the monorepo. The
+   org publishes to Maven Central and npm from the monorepo, so we do the same.
 
-2. **Distribution repos**, if following emo exactly: `emo-kotlin` and `emo-js`
-   exist as separate public repos because JitPack needs Gradle files at a repository
-   root and npm wants a clean one. Extract `packages/tongue-kotlin` and
-   `packages/tongue-js` the same way, or publish from the monorepo and skip them.
+2. **Maven Central.** `ai.desertant` is an established, verified namespace — `core`,
+   `emo`, `redact`, `shapes` and the convention plugin are all published under it —
+   so nothing needs registering. What is needed is the release credentials, which
+   live with whoever runs the releases:
 
-3. **Tag and publish.** Maven Central and npm both need credentials this repo does
-   not carry:
+       ORG_GRADLE_PROJECT_mavenCentralUsername=...   # Central Portal token
+       ORG_GRADLE_PROJECT_mavenCentralPassword=...
+       ORG_GRADLE_PROJECT_signingInMemoryKey=...     # ASCII-armoured GPG secret key
+       ORG_GRADLE_PROJECT_signingInMemoryKeyPassword=...
 
-       cd packages/tongue-kotlin && ./gradlew publish      # needs signing + Sonatype
-       cd packages/tongue-js && npm publish --access public # needs an npm token
+       cd packages/tongue-kotlin && ./gradlew publishToMavenCentral
+
+   `signAllPublications()` is applied only when `signingInMemoryKey` is present, so
+   local builds and CI stay green without keys — same guard the shared plugin uses.
+
+3. **npm.** `@desert-ant-labs` already publishes `emo`, `shapes`, `redact`, `clear`
+   and `desert-ant-web`, so this needs only an org token:
+
+       cd packages/tongue-js && npm publish --access public
 
 4. **desert-ant-core**: a branch adding `String.nfc` is committed locally but not
    pushed. It is not required by anything shipping — the Swift package keeps NFC

@@ -20,8 +20,12 @@
     "on-device", "offline", "multilingual", "typescript", "browser"
   ],
   "license": "SEE LICENSE IN LICENSE.md",
-  "repository": { "type": "git", "url": "git+https://github.com/Desert-Ant-Labs/tongue-js.git" },
-  "homepage": "https://github.com/Desert-Ant-Labs/tongue-js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Desert-Ant-Labs/tongue.git",
+    "directory": "packages/tongue-js"
+  },
+  "homepage": "https://desertant.com/models/tongue/",
   "engines": { "node": ">=18" },
   "sideEffects": false,
   "publishConfig": { "access": "public" },

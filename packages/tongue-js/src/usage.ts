@@ -271,15 +271,18 @@ export class UsageClient {
   }
 
   private makeBody(events: IngestEvent[]): IngestBody {
-    const body: IngestBody = {
+    // Built in one literal, in core's declaration order. Assigning `key` and
+    // `app` afterwards put them last, because JSON.stringify follows insertion
+    // order — so the two ports posted the same data under different byte
+    // sequences while Wire.kt claimed they were identical.
+    return {
       platform: this.deps.platform,
+      ...(this.deps.key ? { key: this.deps.key } : {}),
+      ...(this.deps.appId ? { app: { id: this.deps.appId } } : {}),
       sdk: { name: SDK_NAME, version: this.deps.version },
       sentAt: new Date(this.deps.now()).toISOString(),
       events,
     };
-    if (this.deps.key) body.key = this.deps.key;
-    if (this.deps.appId) body.app = { id: this.deps.appId };
-    return body;
   }
 }
 
@@ -361,9 +364,22 @@ export class UsageTurnstile {
       });
       client.start();
       const turnstile = new UsageTurnstile(client);
-      // A tab that goes away should still deliver what it accrued.
+      // Deliver what was accrued when the host goes away. Without this a process
+      // or tab that ends inside the 3 s debounce sends nothing at all, while
+      // `start()` has already stamped the window — so a short-lived Node script
+      // would report zero every day, permanently.
       if (isBrowser() && typeof addEventListener === "function") {
         addEventListener("pagehide", () => turnstile.client.suspend());
+      } else {
+        const proc = (globalThis as { process?: { once?: (e: string, f: () => void) => void } }).process;
+        // `beforeExit` still allows work to be scheduled, unlike `exit`.
+        proc?.once?.("beforeExit", () => {
+          try {
+            turnstile.client.flush();
+          } catch {
+            /* best effort */
+          }
+        });
       }
       return turnstile;
     } catch {

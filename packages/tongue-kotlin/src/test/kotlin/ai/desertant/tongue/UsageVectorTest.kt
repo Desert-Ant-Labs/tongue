@@ -1,7 +1,11 @@
 package ai.desertant.tongue
 
+import ai.desertant.tongue.usage.AppInfo
 import ai.desertant.tongue.usage.ClientDeps
 import ai.desertant.tongue.usage.IngestBody
+import ai.desertant.tongue.usage.IngestEvent
+import ai.desertant.tongue.usage.SdkInfo
+import ai.desertant.tongue.usage.buildBody
 import ai.desertant.tongue.usage.UsageClient
 import ai.desertant.tongue.usage.UsageState
 import kotlin.test.Test
@@ -76,6 +80,53 @@ class UsageVectorTest {
                 (numberField(case, "finalCarry") ?: 0).toInt(), state.carryCallCount, "$name: final carry",
             )
         }
+    }
+
+    /**
+     * The bytes on the wire, pinned against the JavaScript port's identical
+     * assertion in test/usage.test.js. Field order is part of the contract, and
+     * nothing checked it before — Wire.kt claimed the two ports were
+     * byte-identical while the JS port actually emitted key and app last.
+     */
+    @Test
+    fun wireBodyMatchesCoreFieldOrder() {
+        val body = IngestBody(
+            platform = "node",
+            key = "k",
+            app = AppInfo("com.acme.app"),
+            sdk = SdkInfo(name = "tongue-js", version = "9.9.9"),
+            sentAt = "2023-11-14T22:13:20.000Z",
+            events = listOf(IngestEvent(deviceId = "d", callCount = 2)),
+        )
+        assertEquals(
+            """{"platform":"node","key":"k","app":{"id":"com.acme.app"},""" +
+                """"sdk":{"name":"tongue-js","version":"9.9.9"},""" +
+                """"sentAt":"2023-11-14T22:13:20.000Z",""" +
+                """"events":[{"name":"load","deviceId":"d","callCount":2}]}""",
+            buildBody(body),
+        )
+    }
+
+    /**
+     * The keyless body, asserted exactly. Equality is the check that matters:
+     * substring searches for leaked text give false positives ("de" is inside
+     * "deviceId"), whereas pinning the whole string proves nothing beyond these
+     * fields can appear — no detected text, no language, no reliability.
+     */
+    @Test
+    fun keylessWireBodyIsExactlyTheseFields() {
+        val body = IngestBody(
+            platform = "jvm",
+            sdk = SdkInfo(version = "9.9.9"),
+            sentAt = "2023-11-14T22:13:20.000Z",
+            events = listOf(IngestEvent(deviceId = "d", callCount = 7)),
+        )
+        assertEquals(
+            """{"platform":"jvm","sdk":{"name":"tongue-kotlin","version":"9.9.9"},""" +
+                """"sentAt":"2023-11-14T22:13:20.000Z",""" +
+                """"events":[{"name":"load","deviceId":"d","callCount":7}]}""",
+            buildBody(body),
+        )
     }
 
     // A reader for this document's shape only: flat objects inside "cases", whose

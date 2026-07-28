@@ -91,18 +91,41 @@ internal class AndroidPreferencesStorage private constructor(private val prefs: 
                 val method = context.javaClass.getMethod(
                     "getSharedPreferences", String::class.java, Int::class.javaPrimitiveType,
                 )
-                val prefs = method.invoke(context, "ai.desertant.usage", 0)!!
+                // "desert-ant" is the file desert-ant-core's HostBridge documents, and the
+                // device id key is shared across SDKs — using a different file would make
+                // an app embedding tongue and a core-based SDK count as two devices.
+                val prefs = method.invoke(context, "desert-ant", 0)!!
                 AndroidPreferencesStorage(prefs) as UsageStorage
             }.getOrNull()
         }
     }
 }
 
-/** JVM backend. Not used on Android, where the backing store is unreliable. */
+/**
+ * JVM backend. Not used on Android, where the backing store is unreliable.
+ *
+ * `Preferences` rejects keys longer than [Preferences.MAX_KEY_LENGTH] (80), and
+ * the state key is `ai.desertant.usage.<appKey>.<deviceId>.state` — with a 36-char
+ * UUID device id that is over the limit before the app key is even counted. The
+ * write threw, `runCatching` swallowed it, and the turnstile silently never
+ * persisted: every process looked like a new day and re-emitted. Long keys are
+ * folded to a stable digest instead. Only this backend does it; the keys on the
+ * wire and on Android still match core exactly.
+ */
 internal class JvmPreferencesStorage : UsageStorage {
     private val node: Preferences = Preferences.userRoot().node("ai/desertant/usage")
-    override fun get(key: String): String? = runCatching { node.get(key, null) }.getOrNull()
-    override fun set(key: String, value: String) { runCatching { node.put(key, value); node.flush() } }
+
+    override fun get(key: String): String? = runCatching { node.get(fold(key), null) }.getOrNull()
+
+    override fun set(key: String, value: String) {
+        runCatching { node.put(fold(key), value); node.flush() }
+    }
+
+    private fun fold(key: String): String {
+        if (key.length <= Preferences.MAX_KEY_LENGTH) return key
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(key.toByteArray())
+        return "h." + digest.take(16).joinToString("") { "%02x".format(it) }
+    }
 }
 
 /** True when running on Android, where java.util.prefs cannot be trusted. */

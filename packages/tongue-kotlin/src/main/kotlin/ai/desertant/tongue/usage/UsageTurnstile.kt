@@ -59,7 +59,17 @@ internal class UsageTurnstile private constructor(private val client: UsageClien
             return runCatching {
                 val client = makeClient(context = context, sdkVersion = SDK_VERSION)
                 client.start()
-                UsageTurnstile(client)
+                val turnstile = UsageTurnstile(client)
+                // A process that exits inside the 3 s debounce would otherwise send
+                // nothing at all, while `start()` has already stamped the window —
+                // so a short-lived JVM would report zero every day, permanently.
+                // The hook flushes what it can on the way out.
+                runCatching {
+                    Runtime.getRuntime().addShutdownHook(
+                        Thread { runCatching { synchronized(turnstile.lock) { client.flush() } } },
+                    )
+                }
+                turnstile
             }.getOrNull()
         }
     }

@@ -43,11 +43,19 @@ jobs:
           fi
           VER="${TAG#v}"
 
-          # Name only the artifacts this tag actually ships, on the same rule the
-          # publish workflows gate on: the package's files changed since the
-          # previous tag, a pure version bump not counting.
+          # Name only the artifacts this tag actually ships, on BOTH rules the
+          # publish workflows gate on: the tag names that artifact's version, and
+          # the package's files changed since the previous tag (a pure version bump
+          # not counting). Checking only the second rule is how a Release page came
+          # to advertise coordinates that were never published — if `set-version`
+          # was not committed, the manifests still read the old version, every
+          # publish gate skips, and nothing here noticed.
+          version_of() { sed -n "s/$2/\1/p" "$1"; }
+
           changed() {
-            local dir="$1" manifest="$2" pattern="$3" prev files
+            local dir="$1" manifest="$2" pattern="$3" versionExpr="$4" prev files version
+            version=$(version_of "$manifest" "$versionExpr")
+            [ "$version" = "$VER" ] || return 1
             prev=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
             [ -z "$prev" ] && return 0
             files=$(git diff --name-only "$prev" "$TAG" -- "$dir")
@@ -63,8 +71,10 @@ jobs:
             echo
             echo "- SwiftPM: \`.package(url: \"https://github.com/${GITHUB_REPOSITORY}.git\", from: \"${VER}\")\`"
             and=false; npm=false
-            changed packages/tongue-kotlin packages/tongue-kotlin/build.gradle.kts '^[+-]version = "' && and=true
-            changed packages/tongue-js packages/tongue-js/package.json '^[+-]  "version": "' && npm=true
+            changed packages/tongue-kotlin packages/tongue-kotlin/build.gradle.kts \
+              '^[+-]version = "' '^version = "\(.*\)"$' && and=true
+            changed packages/tongue-js packages/tongue-js/package.json \
+              '^[+-]  "version": "' '^  "version": "\([^"]*\)",$' && npm=true
             [ "$and" = true ] && echo "- Android and JVM: \`ai.desertant:tongue:${VER}\` (Maven Central)"
             [ "$npm" = true ] && echo "- npm: \`@desert-ant-labs/tongue@${VER}\`"
             if [ "$and" != true ] && [ "$npm" != true ]; then

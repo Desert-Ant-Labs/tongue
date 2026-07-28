@@ -50,10 +50,21 @@ emo covers this with an instrumented test on Firebase Test Lab, which needs the 
    registering with Sonatype or npm. Only the grant is missing.
 
 3. **Tag the release.** Both registries then publish from CI; no key ever leaves
-   GitHub:
+   GitHub. Substitute the version you are releasing:
 
-       mise run set-version 0.1.0    # bumps both artifacts, already at 0.1.0
-       git tag v0.1.0 && git push --tags
+       mise run set-version X.Y.Z
+       git commit -am "release X.Y.Z"      # REQUIRED — see below
+       git push origin main
+       git tag vX.Y.Z && git push origin vX.Y.Z
+
+   **The commit is not optional.** `set-version` edits tracked files and leaves them
+   in the working tree. Tag without committing and the tag points at a commit still
+   carrying the *previous* versions, so every gate reads the old number, decides this
+   tag is not its artifact's release, and skips — while `release.yml` still posts a
+   GitHub Release advertising coordinates that never shipped. A green Release page
+   and an untouched registry is the worst possible failure here, because nothing
+   looks wrong. Pushing the branch before the tag matters for the same reason: the
+   tag has to be reachable from what CI checks out.
 
    `publish-android.yml` and `publish-npm.yml` each gate on the tag naming their
    artifact's version *and* on that package's files having changed since the previous

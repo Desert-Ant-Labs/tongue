@@ -111,10 +111,17 @@ jobs:
           path: tongue-training
           token: ${{ secrets.REFERENCE_REPO_TOKEN }}
         continue-on-error: true
-      - name: Regenerate and diff
+      # Runs unconditionally and needs no private repo, so this job can actually
+      # fail. The reference diff below is stronger but skips whenever the token is
+      # absent — which it has been for this repo's whole life, meaning the job
+      # reported green without ever checking anything.
+      - name: Ports agree with each other
+        run: python3 scripts/check_tables_agree.py
+
+      - name: Regenerate and diff against the reference
         run: |
           if [ ! -d tongue-training/src ]; then
-            echo "reference repo unavailable (private); skipping the generated-table check"
+            echo "::warning::reference repo unavailable (no REFERENCE_REPO_TOKEN); ran the cross-port check only"
             exit 0
           fi
           python3 scripts/gen_swift_tables.py --reference tongue-training

@@ -22,6 +22,7 @@ import com.vanniktech.maven.publish.KotlinJvm
 plugins {
     kotlin("jvm") version "2.1.21"
     `java-library`
+    id("org.jetbrains.dokka") version "2.0.0"
     id("com.vanniktech.maven.publish") version "0.34.0"
 }
 
@@ -53,7 +54,11 @@ tasks.named("check") { dependsOn("goldenVectors") }
 val repoUrl = "https://github.com/Desert-Ant-Labs/${rootProject.name}"
 
 mavenPublishing {
-    configure(KotlinJvm(javadocJar = JavadocJar.Javadoc(), sourcesJar = true))
+    // Dokka, not the `javadoc` task: this is a Kotlin source set, so the Java
+    // javadoc tool sees no sources and emits a 261-byte jar containing only a
+    // manifest. Central accepts that, but a consumer opening the docs gets
+    // nothing — the sibling emo ships real generated documentation.
+    configure(KotlinJvm(javadocJar = JavadocJar.Dokka("dokkaGeneratePublicationHtml"), sourcesJar = true))
     publishToMavenCentral()
     // Signing keys only exist on a release runner; without them `build` and
     // `publishToMavenLocal` still work, which is what CI runs.

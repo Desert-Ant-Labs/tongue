@@ -116,14 +116,13 @@ arg "<version>" help="Release version (X.Y.Z)"
 '''
 run = """
 set -euo pipefail
-VERSION="${usage_version:?version arg required}"
-echo "$VERSION" | grep -Eq '^[0-9]+\\.[0-9]+\\.[0-9]+$' || { echo "error: version must be X.Y.Z, got '$VERSION'" >&2; exit 1; }
-sed -i.bak 's/^version = ".*"$/version = "'"$VERSION"'"/' packages/tongue-kotlin/build.gradle.kts
-rm -f packages/tongue-kotlin/build.gradle.kts.bak
-sed -i.bak 's/^  "version": ".*",$/  "version": "'"$VERSION"'",/' packages/tongue-js/package.json
-rm -f packages/tongue-js/package.json.bak
-echo "ai.desertant:tongue            $(mise run check-version)"
-echo "@desert-ant-labs/tongue        $(mise run check-version-npm)"
+# Delegated to a script because the version lives in eight places, not two: the
+# two manifests, the two telemetry SDK_VERSION constants (a stale one makes every
+# release report the first version in billing), and four install snippets a
+# reader copies.
+# The script sweeps the repo afterwards and fails if the old version survives
+# anywhere, so a new site cannot be forgotten silently.
+python3 scripts/set_version.py "${usage_version:?version arg required}"
 """
 
 [tasks.publish-android]

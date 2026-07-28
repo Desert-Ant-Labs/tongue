@@ -16,7 +16,7 @@
 import { normalize, MAX_CHARACTERS } from "./normalize.js";
 import { route, type Route, type Verdict } from "./router.js";
 import { Weights, type Metadata, type Prediction } from "./model.js";
-import { UsageTurnstile } from "./usage.js";
+import { UsageTurnstile, setUsageStorage } from "./usage.js";
 
 export { normalize, MAX_CHARACTERS, route };
 export type { Route, Verdict, Metadata, Prediction };
@@ -55,6 +55,48 @@ export interface LoadOptions {
   readonly from?: string;
 }
 
+/**
+ * Give the usage turnstile somewhere durable to keep its device id on Node.
+ *
+ * Node has no `localStorage`, so without this every process minted a fresh id and
+ * a server-side customer was billed once per process start. Installed from here
+ * because `load` is the async entry point that may already import node builtins;
+ * `usage.ts` itself stays free of them so the same file runs in a browser.
+ * Best-effort: an unwritable home directory just leaves the turnstile in memory.
+ */
+async function installNodeUsageStorage(): Promise<void> {
+  try {
+    const [fs, path, os] = await Promise.all([
+      import("node:fs"),
+      import("node:path"),
+      import("node:os"),
+    ]);
+    const file = path.join(os.homedir(), ".desert-ant", "usage.json");
+    const read = (): Record<string, string> => {
+      try {
+        return JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, string>;
+      } catch {
+        return {};
+      }
+    };
+    setUsageStorage({
+      get: (key) => read()[key] ?? null,
+      set: (key, value) => {
+        try {
+          const all = read();
+          all[key] = value;
+          fs.mkdirSync(path.dirname(file), { recursive: true });
+          fs.writeFileSync(file, JSON.stringify(all), "utf8");
+        } catch {
+          /* unwritable home; reporting is best-effort */
+        }
+      },
+    });
+  } catch {
+    /* not Node after all, or builtins unavailable */
+  }
+}
+
 export class Tongue {
   /** One turnstile per instance. See usage.ts and docs/USAGE.md. */
   private readonly usage: UsageTurnstile | null;
@@ -81,6 +123,7 @@ export class Tongue {
       const { readFile } = await import("node:fs/promises");
       const { fileURLToPath } = await import("node:url");
       const { dirname, join } = await import("node:path");
+      await installNodeUsageStorage();
       const base = options.from ?? dirname(fileURLToPath(import.meta.url));
       const metadata = JSON.parse(
         await readFile(join(base, "tongue_meta.json"), "utf8"),

@@ -76,6 +76,7 @@ class MemoryStorage implements UsageStorage {
  * core uses on WASI.
  */
 function defaultStorage(): UsageStorage {
+  if (installedStorage) return installedStorage;
   const candidate =
     (globalThis as Record<string, unknown>).__dalUsageStore ??
     (globalThis as Record<string, unknown>).localStorage;
@@ -103,6 +104,23 @@ function defaultStorage(): UsageStorage {
   return new MemoryStorage();
 }
 
+/**
+ * A host-installed synchronous store, set by `Tongue.load()` on Node.
+ *
+ * Node has no `localStorage`, so without this every process minted a fresh device
+ * id — and billing counts distinct devices, so a server-side customer was billed
+ * per process start. `load()` is already async and already imports node builtins,
+ * so it installs a file-backed store here before the model is constructed. Doing
+ * it there rather than with a dynamic require keeps this module free of any
+ * Node-only import, which is what lets the same file run in a browser.
+ */
+let installedStorage: UsageStorage | undefined;
+
+/** Install the process-wide store. Called by `Tongue.load()` on Node. */
+export function setUsageStorage(storage: UsageStorage): void {
+  installedStorage = storage;
+}
+
 function uuid(): string {
   const c = (globalThis as { crypto?: Crypto }).crypto;
   if (c && typeof c.randomUUID === "function") return c.randomUUID();
@@ -123,7 +141,15 @@ function isBrowser(): boolean {
   return typeof (globalThis as { document?: unknown }).document !== "undefined";
 }
 
-function hostString(name: string): string | undefined {
+/**
+ * A host override, read from a JS global or the matching environment variable.
+ *
+ * The env name is passed in rather than derived. Deriving it with
+ * `name.replace(/^__dal/,"DAL_").toUpperCase()` turned `__dalApiKey` into
+ * `DAL_APIKEY`, so a Node customer who set `DAL_API_KEY` — the name core and the
+ * Kotlin port document — got bodies with no `key` at all and no way to notice.
+ */
+function hostString(name: string, envName: string): string | undefined {
   const value = (globalThis as Record<string, unknown>)[name];
   if (typeof value === "string" && value) return value;
   if (typeof value === "function") {
@@ -131,8 +157,7 @@ function hostString(name: string): string | undefined {
     if (typeof resolved === "string" && resolved) return resolved;
   }
   const env = (globalThis as { process?: { env?: Record<string, string> } }).process?.env;
-  const fromEnv = env?.[name.replace(/^__dal/, "DAL_").toUpperCase()];
-  return fromEnv || undefined;
+  return env?.[envName] || undefined;
 }
 
 /** Whether usage reporting is switched off for this process. See docs/USAGE.md. */
@@ -152,7 +177,7 @@ export function usageDisabled(): boolean {
 function defaultAppId(): string | undefined {
   if (isBrowser()) return undefined;
   return (
-    hostString("__dalAppId") ??
+    hostString("__dalAppId", "DAL_APP_ID") ??
     (globalThis as { process?: { title?: string } }).process?.title ??
     "unknown"
   );
@@ -301,13 +326,15 @@ export class UsageTurnstile {
     if (usageDisabled()) return null;
     try {
       const store = storage ?? defaultStorage();
-      let device = store.get(DEVICE_ID_KEY);
+      // A host-provided id wins, matching core's resolveDeviceId: a server that
+      // knows its own device identity sets globalThis.__dalDeviceId.
+      let device = hostString("__dalDeviceId", "DAL_DEVICE_ID") ?? store.get(DEVICE_ID_KEY);
       if (!device) {
         device = uuid();
         store.set(DEVICE_ID_KEY, device);
       }
       const appId = defaultAppId();
-      const key = hostString("__dalApiKey");
+      const key = hostString("__dalApiKey", "DAL_API_KEY");
       const namespace = key ?? appId ?? "unknown";
       const client = new UsageClient({
         deviceId: device,

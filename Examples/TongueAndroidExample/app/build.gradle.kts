@@ -34,5 +34,5 @@ dependencies {
     // The whole SDK. No coroutines dependency, unlike EmoAndroidExample: a
     // detection is synchronous arithmetic over 2 MB of bundled weights, so there
     // is nothing to suspend on and nothing to download.
-    implementation("ai.desertant:tongue:0.1.0")
+    implementation("ai.desertant:tongue:0.1.1")
 }

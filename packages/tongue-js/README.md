@@ -64,10 +64,35 @@ rather than as an answer, and ask for more text where the product allows it.
 | `Detection.candidates` | `Prediction[]` with probabilities |
 | `Detection.reliability` | `"confident"` · `"likely"` · `"tentative"` · `"empty"` |
 | `Detection.isTooCloseToCall` | top two within 0.12 |
-| `Detection.route` | `"decisive"` (script alone settled it) · `"narrowing"` · `"ambiguous"` |
+| `Detection.route.verdict` | `"decisive"` (script alone settled it) · `"narrowing"` · `"ambiguous"` |
 
 `normalize`, `route`, `fnv1a` and `buckets` are also exported, for anyone
 reproducing the feature pipeline.
+
+## Serving the model in a browser
+
+On Node the weights load out of the package with no configuration. A bundler does
+not serve files from `node_modules`, so in a browser you serve the two model files
+yourself and point `load` at them:
+
+```ts
+const tongue = await Tongue.load({ from: "/models/tongue" });
+```
+
+Both files are exported, so a bundler can fingerprint and hash them rather than
+needing a copy step:
+
+```ts
+import binUrl from "@desert-ant-labs/tongue/model/tongue_int8.bin?url";   // Vite
+import metaUrl from "@desert-ant-labs/tongue/model/tongue_meta.json?url";
+```
+
+Or copy `node_modules/@desert-ant-labs/tongue/dist/tongue_{int8.bin,meta.json}`
+into your static directory as a build step.
+
+Calling `Tongue.load()` with no `from` in a browser resolves against the page URL,
+which on a single-page app hits the history fallback and returns `index.html`. The
+error says so explicitly if it happens.
 
 ## The cross-platform contract
 

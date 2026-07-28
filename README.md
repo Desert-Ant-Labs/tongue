@@ -29,7 +29,7 @@ multiply-adds. The 2 MB weights ship inside the package.
 ## Install
 
 ```swift
-.package(url: "https://github.com/Desert-Ant-Labs/tongue.git", from: "0.1.0")
+.package(url: "https://github.com/Desert-Ant-Labs/tongue.git", from: "0.1.1")
 ```
 
 Requires iOS 16 / macOS 13 / tvOS 16 / watchOS 9 / visionOS 1, and **Swift 6.2+**

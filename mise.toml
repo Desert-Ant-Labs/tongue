@@ -57,7 +57,21 @@ description = "Golden vectors through the Kotlin port (JVM + Android)"
 dir = "{{ config_root }}/packages/tongue-kotlin"
 run = "./gradlew build"
 
+[tasks.sync-usage-doc]
+description = "Copy docs/USAGE.md into the npm package, which ships it"
+hide = true
+dir = "{{ config_root }}"
+shell = "bash -c"
+run = """
+set -euo pipefail
+# The npm tarball ships USAGE.md so the telemetry opt-out is discoverable from
+# inside an installed package. `files` used to be ["dist"] only, so a user had no
+# in-package way to find it.
+cp docs/USAGE.md packages/tongue-js/USAGE.md
+"""
+
 [tasks.test-js]
+depends = ["sync-usage-doc"]
 # `shell` is explicit on every task below that uses `set -euo pipefail`. mise runs
 # a task under /bin/sh unless told otherwise, and on Linux that is dash, which has
 # no `pipefail` — so these died with "Illegal option -o pipefail" on a CI runner

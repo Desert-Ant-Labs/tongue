@@ -16,7 +16,10 @@
 import { normalize, MAX_CHARACTERS } from "./normalize.js";
 import { route, type Route, type Verdict } from "./router.js";
 import { Weights, type Metadata, type Prediction } from "./model.js";
-import { UsageTurnstile, setUsageStorage } from "./usage.js";
+import { UsageTurnstile } from "./usage.js";
+// Resolved per platform by the "browser" condition in package.json, so a
+// browser build contains no node: specifiers at all. See platform.browser.ts.
+import { installUsageStorage, readModel } from "./platform.js";
 
 export { normalize, MAX_CHARACTERS, route };
 export type { Route, Verdict, Metadata, Prediction };
@@ -48,53 +51,11 @@ export interface Detection {
 }
 
 /** Kept in step with package.json by `mise run set-version`. */
-const SDK_VERSION = "0.1.0";
+const SDK_VERSION = "0.1.1";
 
 export interface LoadOptions {
   /** Directory or base URL holding tongue_int8.bin and tongue_meta.json. */
   readonly from?: string;
-}
-
-/**
- * Give the usage turnstile somewhere durable to keep its device id on Node.
- *
- * Node has no `localStorage`, so without this every process minted a fresh id and
- * a server-side customer was billed once per process start. Installed from here
- * because `load` is the async entry point that may already import node builtins;
- * `usage.ts` itself stays free of them so the same file runs in a browser.
- * Best-effort: an unwritable home directory just leaves the turnstile in memory.
- */
-async function installNodeUsageStorage(): Promise<void> {
-  try {
-    const [fs, path, os] = await Promise.all([
-      import("node:fs"),
-      import("node:path"),
-      import("node:os"),
-    ]);
-    const file = path.join(os.homedir(), ".desert-ant", "usage.json");
-    const read = (): Record<string, string> => {
-      try {
-        return JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, string>;
-      } catch {
-        return {};
-      }
-    };
-    setUsageStorage({
-      get: (key) => read()[key] ?? null,
-      set: (key, value) => {
-        try {
-          const all = read();
-          all[key] = value;
-          fs.mkdirSync(path.dirname(file), { recursive: true });
-          fs.writeFileSync(file, JSON.stringify(all), "utf8");
-        } catch {
-          /* unwritable home; reporting is best-effort */
-        }
-      },
-    });
-  } catch {
-    /* not Node after all, or builtins unavailable */
-  }
 }
 
 export class Tongue {
@@ -117,27 +78,27 @@ export class Tongue {
    * Load the model. Reads the bundled weights by default: on Node from the
    * package directory, in a browser by fetching relative to `options.from`.
    */
+  /**
+   * Load the model.
+   *
+   * On Node this reads the weights out of the package by default. In a browser
+   * they are fetched, and there is nothing sensible to default to — a bundler
+   * does not serve files out of node_modules — so pass `from`:
+   *
+   * ```ts
+   * const tongue = await Tongue.load({ from: "/models/tongue" });
+   * ```
+   *
+   * The two files to serve are exported for exactly this, so a bundler can
+   * fingerprint them rather than needing a copy step:
+   *
+   * ```ts
+   * import metaUrl from "@desert-ant-labs/tongue/model/tongue_meta.json?url";
+   * ```
+   */
   static async load(options: LoadOptions = {}): Promise<Tongue> {
-    const isNode = typeof process !== "undefined" && process.versions?.node !== undefined;
-    if (isNode && !options.from?.startsWith("http")) {
-      const { readFile } = await import("node:fs/promises");
-      const { fileURLToPath } = await import("node:url");
-      const { dirname, join } = await import("node:path");
-      await installNodeUsageStorage();
-      const base = options.from ?? dirname(fileURLToPath(import.meta.url));
-      const metadata = JSON.parse(
-        await readFile(join(base, "tongue_meta.json"), "utf8"),
-      ) as Metadata;
-      const bytes = new Uint8Array(await readFile(join(base, "tongue_int8.bin")));
-      return Tongue.fromBytes(metadata, bytes);
-    }
-    const base = (options.from ?? ".").replace(/\/$/, "");
-    const [metadata, bytes] = await Promise.all([
-      fetch(`${base}/tongue_meta.json`).then((r) => r.json() as Promise<Metadata>),
-      fetch(`${base}/tongue_int8.bin`)
-        .then((r) => r.arrayBuffer())
-        .then((b) => new Uint8Array(b)),
-    ]);
+    await installUsageStorage();
+    const { metadata, bytes } = await readModel(options.from);
     return Tongue.fromBytes(metadata, bytes);
   }
 

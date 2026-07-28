@@ -1,23 +1,41 @@
 {
   "name": "@desert-ant-labs/tongue",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "On-device language identification for short text, across 83 languages. Pure JavaScript: no wasm, no inference runtime.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./model/tongue_int8.bin": "./dist/tongue_int8.bin",
+    "./model/tongue_meta.json": "./dist/tongue_meta.json",
+    "./dist/tongue_int8.bin": "./dist/tongue_int8.bin",
+    "./dist/tongue_meta.json": "./dist/tongue_meta.json",
     "./package.json": "./package.json"
   },
-  "files": ["dist"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE.md",
+    "USAGE.md"
+  ],
   "scripts": {
     "build": "tsc && cp src/tongue_int8.bin src/tongue_meta.json dist/",
     "test": "npm run build && node --test test/*.test.js",
     "prepare": "npm run build"
   },
   "keywords": [
-    "language-identification", "language-detection", "langid",
-    "on-device", "offline", "multilingual", "typescript", "browser"
+    "language-identification",
+    "language-detection",
+    "langid",
+    "on-device",
+    "offline",
+    "multilingual",
+    "typescript",
+    "browser"
   ],
   "license": "SEE LICENSE IN LICENSE.md",
   "repository": {
@@ -26,8 +44,18 @@
     "directory": "packages/tongue-js"
   },
   "homepage": "https://desertant.com/models/tongue/",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "sideEffects": false,
-  "publishConfig": { "access": "public" },
-  "devDependencies": { "@types/node": "^22", "typescript": "^5" }
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5"
+  },
+  "browser": {
+    "./dist/platform.js": "./dist/platform.browser.js"
+  }
 }

@@ -81,6 +81,7 @@ let package = Package(
             name: "TongueTests",
             dependencies: ["Tongue"],
             resources: [
+                .copy("Resources/detection_vectors.json"),
                 .copy("Resources/normalize_vectors.json"),
                 .copy("Resources/script_vectors.json"),
                 .copy("Resources/hashing_vectors.json"),

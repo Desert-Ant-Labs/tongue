@@ -9,7 +9,8 @@ package ai.desertant.tongue.usage
  *
  * Ported rather than bridged because this SDK's Kotlin is a direct port with no
  * Swift underneath — see docs/USAGE.md. Behaviour is checked against the shared
- * vectors in `golden/usage_vectors.json`.
+ * vectors in `src/test/resources/usage_vectors.json`, which the JavaScript port
+ * replays from `test/usage_vectors.json` byte for byte.
  */
 
 /** A native/mobile install is persistent, so a device re-emits at most once a day. */

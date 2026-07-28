@@ -8,17 +8,21 @@ run rather than automated here.
 
 | | command | result |
 |---|---|---|
-| Apple | `mise run test-swift` | 7/7, no dependencies |
+| Apple | `mise run test-swift` | 7/7 (resolves desert-ant-core, JavaScriptKit, swift-syntax) |
 | Android + JVM | `mise run test-kotlin` | `./gradlew build` green, golden vectors in `check` |
-| Browser + Node | `mise run test-js` | 5/5, packed tarball installs and detects |
+| Browser + Node | `mise run test-js` | 9/9, packed tarball installs and detects |
 | Console examples | `mise run examples` | both print identical probabilities |
 | iOS app | `xcodebuild -scheme TongueExample` | BUILD SUCCEEDED, `TongueExample.app` produced |
-| Android app | `./gradlew :app:assembleDebug` | 2.52 MB APK, model inside, **0** `lib/` entries |
-| CI | `.github/workflows/ci.yml` | four jobs; resolves deps from released tags |
+| Android app | `./gradlew clean :app:assembleDebug` | 2.54 MB APK, model inside, **0** `lib/` entries |
+| CI | `.github/workflows/ci.yml` | four jobs; the table check now runs unconditionally |
 
-Consumer smoke tests both passed: `publishToMavenLocal` → `ai.desertant:tongue:0.1.0`
-(1.6 MB jar) used from a separate Kotlin program, and `npm pack` → tarball installed
+Consumer smoke tests both passed: `publishToMavenLocal` → `ai.desertant:tongue`
+(1.7 MB jar) used from a separate Kotlin program, and `npm pack` → tarball installed
 into a fresh project and used as `@desert-ant-labs/tongue`.
+
+Cross-port parity is checked outside the shipped suites too: 53 diverse inputs give
+identical language, reliability, tie flag and 9-decimal probabilities on all three
+ports, and ten Swift launches over that corpus produce one hash.
 
 Not verified: the Android app on a real device or emulator. It builds and packages,
 and the Kotlin port's golden vectors pass on the JVM, but Android's `java.text`

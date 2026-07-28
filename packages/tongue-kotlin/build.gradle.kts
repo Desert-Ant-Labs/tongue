@@ -35,7 +35,8 @@ kotlin {
 }
 
 dependencies {
-    // Deliberately none. This artifact adds no transitive dependency to a consumer;
+    // Deliberately none beyond kotlin-stdlib, which the Kotlin plugin adds to the
+    // POM and every Kotlin consumer already has. Nothing else is declared;
     // the metadata reader is hand-rolled for exactly that reason.
     testImplementation(kotlin("test"))
 }

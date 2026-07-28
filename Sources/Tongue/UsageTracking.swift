@@ -75,7 +75,8 @@ func makeTurnstile() -> UsageTurnstile? {
 /// Core deliberately leaves no untracked path through `Inference`, and nothing
 /// here weakens that for a shipped app. This exists because *our own* suites run
 /// on networked CI: without it, `mise run test` would post real load events from
-/// every build. `scripts/with-swift.sh` and the test tasks set it, and it is
+/// every build. `mise.toml` sets it for every task in this repo and
+/// `.github/workflows/ci.yml` for every job, and it is
 /// documented so an operator running the SDK in a sealed environment has an
 /// answer that is not "patch the library".
 func usageDisabled() -> Bool {

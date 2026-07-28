@@ -6,12 +6,11 @@ the same way.
 
 ## What is reported
 
-One `load` event, at most once per device per day, POSTed to
-`https://platform.desertant.ai/api/v1/ingest`:
+`load` events, POSTed to `https://platform.desertant.ai/api/v1/ingest`:
 
 ```json
 {
-  "platform": "ios",
+  "platform": "android",
   "app": { "id": "com.acme.app" },
   "sdk": { "name": "tongue-kotlin", "version": "0.1.0" },
   "sentAt": "2026-07-27T19:40:00.000Z",
@@ -27,10 +26,25 @@ One `load` event, at most once per device per day, POSTed to
 - **No text is ever sent.** Nothing that was detected, no language results, no
   input length. The pipeline never touches the network; only the turnstile does.
 
+### How often
+
+One device is *counted* at most once a day, but that is not the same as one
+request a day, and it is worth being precise because the difference is visible in
+a network log:
+
+- The **turnstile** — the billed event — opens once per window: a day on Apple,
+  Android and Node, **30 minutes in a browser**, because a tab is ephemeral and
+  core uses a session-shaped window there.
+- After it opens, further detections in that session ride **delta events**, which
+  flush on a 3-second debounce. A burst of typing is one request, but a session
+  that keeps detecting keeps sending small ones.
+
+Extra events cannot over-bill: the server counts `COUNT(DISTINCT deviceId)` per
+month and sums `callCount`, so the number of requests changes nothing about what
+is charged. It does mean a busy browser tab can post more than once an hour.
+
 This is billing metering, not product analytics: the licence is free below a
 threshold and commercial above it, and monthly active devices is the measure.
-Sending an extra `load` cannot over-bill, because the server counts
-`COUNT(DISTINCT deviceId)` per month.
 
 ## Turning it off
 
@@ -69,7 +83,7 @@ inherit from. The result is three implementations of one state machine.
 |---|---|---|---|
 | Swift | core's `Usage` module, unchanged | core's (UserDefaults / SharedPreferences via host bridge) | core's |
 | Kotlin | `usage/UsageClient.kt`, a port | SharedPreferences via a `Context`, else `java.util.prefs`, else memory | `HttpURLConnection` on one daemon thread |
-| JavaScript | `usage.ts`, a port | `__dalUsageStore` → `localStorage` → memory | `fetch(keepalive)`, `sendBeacon` on unload |
+| JavaScript | `usage.ts`, a port | `__dalUsageStore` → `localStorage` → a JSON file under `~/.desert-ant` on Node → memory | `fetch(keepalive)`, `sendBeacon` on unload |
 
 Each opens the turnstile when the model is constructed, records a call per
 `detect`, and flushes on a 3-second debounce so a burst of keystrokes becomes one
@@ -77,7 +91,7 @@ send. That mirrors core's `TrackedSession`.
 
 Two constraints shaped the ports:
 
-- **The Kotlin artifact is a plain jar with no dependencies**, and must keep
+- **The Kotlin artifact is a plain jar declaring nothing but kotlin-stdlib**, and must keep
   running on a bare JVM, so it cannot compile against the Android SDK. An Android
   caller passes its `Context` to `Tongue.bundled(context)` and it is used
   reflectively. Without a `Context` on Android there is nowhere durable to keep

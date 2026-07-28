@@ -2,7 +2,8 @@ package ai.desertant.tongue
 
 /**
  * The script router: a zero-parameter layer that answers before the model runs.
- * Ported from src/tongue_training/script.py; golden/script_vectors.json holds
+ * Ported from src/tongue_training/script.py; the script_vectors.json copied into
+ * src/test/resources holds
  * this file to those semantics.
  */
 internal object Router {

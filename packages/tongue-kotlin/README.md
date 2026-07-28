@@ -8,7 +8,8 @@ tongue.detect("kann ich das haben").language   // "de"
 tongue.detect("안녕하세요").language             // "ko"
 ```
 
-**No dependencies, no native code, no NDK.** A detection is an int8 embedding
+**No native code, no NDK, and nothing on the classpath but the Kotlin standard
+library.** A detection is an int8 embedding
 gather, a sum, one 59×32 matmul and a masked softmax — a few thousand
 multiply-adds — so this is a direct Kotlin port rather than a JNI binding over the
 Swift core. That is a deliberate departure from `emo-kotlin`: bridging would cost

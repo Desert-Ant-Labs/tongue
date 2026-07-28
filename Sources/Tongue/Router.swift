@@ -2,7 +2,8 @@ import Foundation
 
 // The script router: a zero-parameter layer that answers before the model runs.
 // Ported from src/tongue_training/script.py; semantics are load-bearing and the
-// golden vectors in golden/script_vectors.json hold this file to them.
+// the script_vectors.json copied into Tests/TongueTests/Resources hold this file
+// to them (generated in the reference repo's golden/).
 
 public enum Verdict: String, Sendable {
     /// One language uses this script; no model needed.

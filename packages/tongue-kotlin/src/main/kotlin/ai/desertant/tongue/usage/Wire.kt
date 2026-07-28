@@ -9,10 +9,12 @@ package ai.desertant.tongue.usage
  * events, so emitting an extra `load` never over-bills and a session's calls can
  * be split across several events and still add up.
  *
- * JSON is written by hand. The shape is fixed and tiny, and this artifact adds no
- * transitive dependency to a consumer — pulling in a JSON library for six fields
- * would break that for no benefit. Field order follows core's declaration order so
- * the two ports produce byte-identical bodies, which `UsageVectorTest` checks.
+ * JSON is written by hand. The shape is fixed and tiny, and this artifact declares
+ * nothing beyond kotlin-stdlib — pulling in a JSON library for six fields would
+ * put a real dependency on every consumer for no benefit. Field order follows core's declaration order so
+ * the two ports produce byte-identical bodies. `UsageVectorTest.wireBodyMatchesCoreFieldOrder`
+ * and the JavaScript suite's "the wire body matches core's field order" assert the
+ * same literal string, so a reordered field in either port fails both.
  */
 internal const val SDK_NAME: String = "tongue-kotlin"
 

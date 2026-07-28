@@ -20,9 +20,9 @@ import ai.desertant.tongue.usage.UsageTurnstile
  * the JVM and on Android.
  *
  * The safety normally bought by having one implementation is bought here instead
- * by `golden/`: the normalizer, hasher and router are a frozen specification, and
- * `GoldenVectorTest` replays the same vector files the Swift and JavaScript ports
- * do, byte for byte.
+ * by the shared vectors: the normalizer, hasher and router are a frozen
+ * specification, and `GoldenVectorTest` replays the same vector files the Swift
+ * and JavaScript ports do, byte for byte.
  */
 public class Tongue internal constructor(
     private val metadata: Metadata,

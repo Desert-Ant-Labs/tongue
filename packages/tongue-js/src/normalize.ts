@@ -3,7 +3,8 @@
 // That module is a frozen specification, not an implementation detail: this file
 // must reproduce its output exactly, or the model sees different features here
 // than it was trained on. The contract is docs/normalizer.md plus
-// golden/normalize_vectors.json, replayed by test/golden.test.ts.
+// test/normalize_vectors.json, copied from the reference repo's golden/ and
+// replayed by test/golden.test.js.
 //
 // Porting hazards this file is deliberate about:
 //

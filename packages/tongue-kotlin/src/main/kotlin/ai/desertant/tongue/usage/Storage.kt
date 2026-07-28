@@ -12,7 +12,7 @@ import java.util.prefs.Preferences
  * no native layer here, and the jar does not compile against the Android SDK — it
  * has to keep working on a bare JVM — so an Android caller passes its `Context` in
  * and it is used reflectively. No Android types appear in the signature and the
- * jar stays dependency-free.
+ * jar declares nothing beyond kotlin-stdlib.
  *
  * Backends, in the order [defaultStorage] tries them:
  *

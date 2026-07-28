@@ -22,7 +22,7 @@ tongue.detect("kann ich das haben").language   // "de"
 tongue.detect("안녕하세요").language             // "ko"
 ```
 
-No ML runtime, no dependencies, no tokenizer. A detection is an int8 embedding
+No ML runtime and no tokenizer. A detection is an int8 embedding
 gather, a sum, one 59×32 matmul and a masked softmax — a few thousand
 multiply-adds. The 2 MB weights ship inside the package.
 
@@ -63,7 +63,7 @@ rather than as an answer, and ask for more text where the product allows it.
 | `Detection.candidates` | `[Prediction]` with probabilities |
 | `Detection.reliability` | `.confident` · `.likely` · `.tentative` · `.empty` |
 | `Detection.isTooCloseToCall` | top two within 0.12 |
-| `Detection.route` | `.decisive` (script alone settled it) · `.narrowing` · `.ambiguous` |
+| `Detection.route.verdict` | `.decisive` (script alone settled it) · `.narrowing` · `.ambiguous` |
 | `Tongue(weightsURL:metadataURL:)` | load from disk instead of the bundle |
 
 ## How it works
@@ -87,10 +87,13 @@ construction.
 ## The cross-platform contract
 
 The normalizer, hasher and router are a **frozen specification** shared with the
-Python reference implementation and the other SDKs. `Tests/TongueTests` replays
-`golden/normalize_vectors.json`, `hashing_vectors.json` and `script_vectors.json`
-so a port cannot drift silently — including whole-bag equality on the hasher,
-which catches boundary marking and n-gram coverage that per-string hashes miss.
+Python reference implementation and the other SDKs. The vectors are generated in
+the reference repo (`golden/` there, by `scripts/gen_golden.py`) and copied into
+each port, so `Tests/TongueTests/Resources`,
+`packages/tongue-kotlin/src/test/resources` and `packages/tongue-js/test` all hold
+the same three files. Every port replays them, including whole-bag equality on the
+hasher, which catches boundary marking and n-gram coverage that per-string hashes
+miss.
 
 Regenerate the Unicode tables rather than editing them:
 
@@ -118,15 +121,15 @@ nothing to await.
 ## Tests
 
 ```
-swift test
+mise run test-swift
 ```
 
-XCTest needs the full Xcode toolchain; if `xcode-select -p` points at
-CommandLineTools, run:
-
-```
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
-```
+Not bare `swift test`: desert-ant-core depends on JavaScriptKit, whose manifest
+declares swift-tools 6.2, and Xcode 16.4 ships Swift 6.1.2 — so a plain
+`swift test` resolves the graph and then fails to build it. `scripts/with-swift.sh`
+(which that task runs) uses Xcode's toolchain when it is new enough and falls back
+to swiftly's 6.2 otherwise, and points `DEVELOPER_DIR` at Xcode either way, since
+XCTest does not ship with CommandLineTools.
 
 ## Model
 
@@ -141,10 +144,14 @@ version strings are not language at all.
 ## Usage reporting
 
 Detection is entirely on device: no text ever leaves it, and the pipeline never
-touches the network. Separately, the SDK reports **one event per device per day**
-so the licence can be metered — a generated UUID, the app's bundle id or package
-name, and how many detections happened. No text, no results, nothing about the
-user or the machine.
+touches the network. Separately, the SDK reports usage so the licence can be
+metered — a generated UUID, the app's bundle id or package name, and how many
+detections happened. No text, no results, nothing about the user or the machine.
+
+A device is *counted* at most once a day, but that is not one request a day: after
+the daily event opens, further detections ride small delta events on a 3-second
+debounce, and a browser uses a 30-minute window rather than a day. Extra events
+cannot over-bill — the server counts distinct devices per month.
 
 Switch it off with `DAL_USAGE_DISABLED=1` and no client is built at all.
 

@@ -12,7 +12,7 @@ import java.util.concurrent.ThreadFactory
  * `Identity.swift` and `Transport.swift`.
  *
  * `HttpURLConnection` rather than a client library: the jar must stay
- * dependency-free, and it exists on every JVM and every Android level this SDK
+ * free of declared dependencies, and it exists on every JVM and Android level this SDK
  * supports.
  */
 

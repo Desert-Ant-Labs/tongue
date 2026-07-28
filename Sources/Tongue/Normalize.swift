@@ -4,7 +4,8 @@ import Regex
 // src/tongue_training/normalize.py. That module is a frozen specification, not
 // an implementation detail: this file must reproduce its output exactly, or the
 // model sees different features here than it was trained on. The contract is
-// docs/normalizer.md plus golden/normalize_vectors.json, replayed by
+// docs/normalizer.md plus normalize_vectors.json — generated in the reference
+// repo's golden/ and copied into each port's test resources — replayed by
 // TongueTests — change one and you change all of them, in the same commit.
 //
 // Regex comes from desert-ant-core, the shared primitive every model SDK uses: on

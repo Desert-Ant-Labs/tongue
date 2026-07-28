@@ -69,7 +69,12 @@ jobs:
           {
             echo "## Packages"
             echo
-            echo "- SwiftPM: \`.package(url: \"https://github.com/${GITHUB_REPOSITORY}.git\", from: \"${VER}\")\`"
+            echo "- SwiftPM: \`.package(url: \"https://github.com/${GITHUB_REPOSITORY}.git\", from: \"${VER}\")\` — live as soon as this tag exists"
+            # These say what this tag is ELIGIBLE to publish, not what a registry
+            # accepted — the publish jobs are separate workflows, so this one
+            # cannot `needs:` them. v0.1.0 shipped a Release naming npm while the
+            # npm job was failing, so the wording below is deliberately about
+            # intent, and the check afterwards states what is actually live.
             and=false; npm=false
             changed packages/tongue-kotlin packages/tongue-kotlin/build.gradle.kts \
               '^[+-]version = "' '^version = "\(.*\)"$' && and=true

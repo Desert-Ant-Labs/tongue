@@ -23,6 +23,15 @@ on:
   push:
     tags:
       - "v*"
+  # A publish can fail for reasons that have nothing to do with the artifact —
+  # a runner hiccup, a registry outage, or (for 0.1.0) a task that only broke
+  # under the CI shell. Re-running needs to be possible without moving a tag that
+  # has already published elsewhere, so the same job can be dispatched at a ref.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish to Maven Central (e.g. v0.1.0)"
+        required: true
 
 concurrency:
   group: publish-android-${{ github.ref }}
@@ -41,12 +50,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history + tags, to diff against the previous tag
+          ref: ${{ inputs.tag || github.ref }}
 
       - id: g
         shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${INPUT_TAG:-$GITHUB_REF_NAME}"
           BUILD=packages/tongue-kotlin/build.gradle.kts
           VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' "$BUILD")
           [ -n "$VERSION" ] || { echo "no version in $BUILD" >&2; exit 1; }
@@ -93,6 +105,8 @@ jobs:
     environment: maven-central
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       # Just the mise binary; skip installing the config's [tools], which this
       # JVM-only publish does not need. The task pulls temurin-21 on demand.

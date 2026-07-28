@@ -58,9 +58,16 @@ dir = "{{ config_root }}/packages/tongue-kotlin"
 run = "./gradlew build"
 
 [tasks.test-js]
+# `shell` is explicit on every task below that uses `set -euo pipefail`. mise runs
+# a task under /bin/sh unless told otherwise, and on Linux that is dash, which has
+# no `pipefail` — so these died with "Illegal option -o pipefail" on a CI runner
+# while passing on macOS. That is what stopped the 0.1.0 npm publish: publish-npm
+# depends on test-js, test-js aborted before running anything, and the publish
+# never happened. CI did not catch it because its jobs call npm directly.
 description = "Golden vectors through the JavaScript port (browser + Node)"
 dir = "{{ config_root }}/packages/tongue-js"
 tools = { node = "22" }
+shell = "bash -c"
 run = """
 set -euo pipefail
 npm install --silent
@@ -70,6 +77,7 @@ npm test
 [tasks.gen-tables]
 description = "Regenerate the Unicode script tables in all three ports from the Python reference"
 dir = "{{ config_root }}"
+shell = "bash -c"
 run = """
 set -euo pipefail
 REF="${TONGUE_REFERENCE:-../tongue-training}"
@@ -83,6 +91,7 @@ python3 scripts/check_tables_agree.py
 [tasks.gen-detection-vectors]
 description = "Regenerate detection_vectors.json (the head's output) into all three ports"
 dir = "{{ config_root }}"
+shell = "bash -c"
 run = """
 set -euo pipefail
 # Needs numpy, which the system python3 may not have; the training repo's
@@ -186,6 +195,7 @@ echo "published: @desert-ant-labs/tongue@$(mise run check-version-npm)"
 [tasks.android-natives]
 description = "Cross-compile the C ABI for Android (used by the Node native binding, not by the Kotlin SDK)"
 dir = "{{ config_root }}"
+shell = "bash -c"
 run = """
 set -euo pipefail
 # The Kotlin SDK is a direct port and needs none of this. Kept because the same C

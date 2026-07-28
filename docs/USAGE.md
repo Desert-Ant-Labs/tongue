@@ -99,6 +99,28 @@ Two constraints shaped the ports:
 - **JSON is written by hand** in Kotlin for the same reason. The shape is six
   fields; a JSON library would add a transitive dependency to every consumer.
 
+## The transport is exercised, not just the state machine
+
+Every turnstile test injects `send`, so for a while nothing proved a body ever
+left the process. All three now drive their real HTTP client at a local server
+and assert what arrives:
+
+| Port | client | test |
+|---|---|---|
+| Swift | core's `makeSend`, unmodified | verified manually against a local server; nothing here can regress it |
+| Kotlin | `HttpURLConnection` | `UsageVectorTest.transportActuallyPostsTheBodyOverHttp` |
+| JavaScript | `fetch(keepalive)` | "the transport actually posts the body over HTTP" |
+
+One difference worth knowing before anyone diffs packet captures: Swift serializes
+through Foundation's `JSONEncoder` and emits **alphabetical** key order, while the
+two ports emit core's declaration order. JSON object order carries no meaning and
+the server parses either, but the bytes are not identical across all three — only
+Kotlin and JavaScript are, and that pair is asserted byte for byte.
+
+The one thing still unproven is delivery to the production endpoint itself. It
+resolves and completes a TLS handshake, but no event has been sent from here:
+doing so would put a development machine into real billing data.
+
 ## Keeping the three honest
 
 `usage_vectors.json` is the contract, replayed by the Kotlin and JavaScript ports

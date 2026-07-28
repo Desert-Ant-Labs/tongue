@@ -42,10 +42,12 @@ same vector files: 43 normalize cases and 19 detection cases, all passing. emo
 covers this with a Firebase Test Lab instrumented test, which needs the AGP
 `androidTest` setup this package deliberately does not have.
 
-Still unverified: no usage event has ever been delivered end to end to the ingest
-endpoint. Every run here sets `DAL_USAGE_DISABLED=1`, because emitting one would
-put this machine into real billing data. The state machine is pinned by vectors
-and the wire bytes are asserted byte for byte in two ports; the round trip is not.
+The transport is now exercised in all three ports: each drives its real HTTP
+client at a local server and asserts the method, content type and exact body that
+arrives (see docs/USAGE.md). What remains unproven is delivery to the production
+endpoint specifically — it resolves and completes a TLS handshake, but no event
+has been sent from here, because that would put a development machine into real
+billing data. The first genuine install will be the first genuine event.
 
 ## Remaining steps
 

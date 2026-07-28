@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import { UsageClient } from "../dist/usage.js";
+import { UsageClient, makeSend } from "../dist/usage.js";
 import { Tongue } from "../dist/index.js";
 
 // Replays the shared turnstile contract. The Kotlin port replays the identical
@@ -110,5 +110,52 @@ test("DAL_USAGE_DISABLED suppresses every send and every store write", async () 
     assert.equal(fetched, false, "a detection posted despite DAL_USAGE_DISABLED");
   } finally {
     globalThis.fetch = realFetch;
+  }
+});
+
+test("the transport actually posts the body over HTTP", async () => {
+  // Everything else about the turnstile is tested with an injected `send`, so the
+  // HTTP path itself had never run: no test proved a body ever left the process.
+  // This drives the real transport at a local server. The destination stays
+  // hardcoded for real use; only the test passes an endpoint.
+  const { createServer } = await import("node:http");
+  const received = [];
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      received.push({ method: req.method, type: req.headers["content-type"], body });
+      res.writeHead(204).end();
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address();
+
+  try {
+    makeSend(`http://127.0.0.1:${port}/api/v1/ingest`)({
+      platform: "node",
+      key: "k",
+      app: { id: "com.acme.app" },
+      sdk: { name: "tongue-js", version: "9.9.9" },
+      sentAt: "2023-11-14T22:13:20.000Z",
+      events: [{ name: "load", deviceId: "d", callCount: 2 }],
+    });
+
+    const deadline = Date.now() + 5000;
+    while (received.length === 0 && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    assert.equal(received.length, 1, "the transport never reached the server");
+    assert.equal(received[0].method, "POST");
+    assert.equal(received[0].type, "application/json");
+    assert.equal(
+      received[0].body,
+      '{"platform":"node","key":"k","app":{"id":"com.acme.app"},' +
+        '"sdk":{"name":"tongue-js","version":"9.9.9"},' +
+        '"sentAt":"2023-11-14T22:13:20.000Z",' +
+        '"events":[{"name":"load","deviceId":"d","callCount":2}]}',
+    );
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
   }
 });

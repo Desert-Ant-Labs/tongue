@@ -286,7 +286,14 @@ export class UsageClient {
   }
 }
 
-function makeSend(endpoint = INGEST_ENDPOINT): (body: IngestBody) => void {
+/**
+ * Exported so a test can drive the real transport at a local endpoint. The
+ * default is not overridable from outside: `UsageTurnstile` always uses
+ * INGEST_ENDPOINT, matching core, which keeps the destination out of the public
+ * API. Without this the HTTP path was never executed by any test — the state
+ * machine was covered, the send was not.
+ */
+export function makeSend(endpoint = INGEST_ENDPOINT): (body: IngestBody) => void {
   return (body) => {
     let json: string;
     try {

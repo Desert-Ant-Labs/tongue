@@ -6,6 +6,11 @@ import ai.desertant.tongue.usage.IngestBody
 import ai.desertant.tongue.usage.IngestEvent
 import ai.desertant.tongue.usage.SdkInfo
 import ai.desertant.tongue.usage.buildBody
+import ai.desertant.tongue.usage.makeSend
+import com.sun.net.httpserver.HttpServer
+import java.net.InetSocketAddress
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import ai.desertant.tongue.usage.UsageClient
 import ai.desertant.tongue.usage.UsageState
 import kotlin.test.Test
@@ -127,6 +132,57 @@ class UsageVectorTest {
                 """"events":[{"name":"load","deviceId":"d","callCount":7}]}""",
             buildBody(body),
         )
+    }
+
+    /**
+     * Drives the real transport at a local server.
+     *
+     * Every other turnstile test injects `send`, so the HTTP path itself had never
+     * executed: nothing proved a body ever left the process. The destination stays
+     * hardcoded for real use — only this test passes an endpoint.
+     */
+    @Test
+    fun transportActuallyPostsTheBodyOverHttp() {
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        val latch = CountDownLatch(1)
+        var method: String? = null
+        var contentType: String? = null
+        var body: String? = null
+
+        server.createContext("/api/v1/ingest") { exchange ->
+            method = exchange.requestMethod
+            contentType = exchange.requestHeaders.getFirst("Content-Type")
+            body = exchange.requestBody.readBytes().toString(Charsets.UTF_8)
+            exchange.sendResponseHeaders(204, -1)
+            exchange.close()
+            latch.countDown()
+        }
+        server.start()
+        try {
+            val endpoint = "http://127.0.0.1:${server.address.port}/api/v1/ingest"
+            makeSend(endpoint)(
+                IngestBody(
+                    platform = "jvm",
+                    key = "k",
+                    app = AppInfo("com.acme.app"),
+                    sdk = SdkInfo(name = "tongue-js", version = "9.9.9"),
+                    sentAt = "2023-11-14T22:13:20.000Z",
+                    events = listOf(IngestEvent(deviceId = "d", callCount = 2)),
+                ),
+            )
+            check(latch.await(10, TimeUnit.SECONDS)) { "the transport never reached the server" }
+            assertEquals("POST", method)
+            assertEquals("application/json", contentType)
+            assertEquals(
+                """{"platform":"jvm","key":"k","app":{"id":"com.acme.app"},""" +
+                    """"sdk":{"name":"tongue-js","version":"9.9.9"},""" +
+                    """"sentAt":"2023-11-14T22:13:20.000Z",""" +
+                    """"events":[{"name":"load","deviceId":"d","callCount":2}]}""",
+                body,
+            )
+        } finally {
+            server.stop(0)
+        }
     }
 
     // A reader for this document's shape only: flat objects inside "cases", whose

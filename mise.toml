@@ -76,6 +76,7 @@ REF="${TONGUE_REFERENCE:-../tongue-training}"
 python3 scripts/gen_swift_tables.py --reference "$REF"
 python3 scripts/gen_kotlin_tables.py --reference "$REF"
 python3 scripts/gen_ts_tables.py --reference "$REF"
+python3 scripts/gen_discard_tables.py --reference "$REF"
 python3 scripts/check_tables_agree.py
 """
 

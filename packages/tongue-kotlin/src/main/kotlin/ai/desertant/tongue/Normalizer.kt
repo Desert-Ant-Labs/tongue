@@ -21,7 +21,7 @@ import java.text.Normalizer as JavaNormalizer
  *    otherwise truncate at half the length.
  *  - **Invariant lowercase.** `lowercase()` with no locale is Unicode-default;
  *    `lowercase(Locale.getDefault())` would diverge under a Turkish locale.
- *  - **Category filter.** `Character.getType` matches Python's
+ *  - **Category filter.** The pinned [DiscardTable] matches Python's
  *    `unicodedata.category` for the five classes dropped here.
  */
 public object Normalizer {
@@ -50,16 +50,30 @@ public object Normalizer {
     private val DIGITS = Regex("""\p{Nd}+""")
     private val WHITESPACE = Regex("[$WHITESPACE_CLASS]+")
 
-    // Emoji, symbol modifiers and invisible formatting characters: no language
-    // signal, but they do perturb the n-gram bag. Java's int constants for
-    // Unicode general categories So, Sk, Cf, Co, Cn.
-    private val DISCARDED = setOf(
-        Character.OTHER_SYMBOL.toInt(),
-        Character.MODIFIER_SYMBOL.toInt(),
-        Character.FORMAT.toInt(),
-        Character.PRIVATE_USE.toInt(),
-        Character.UNASSIGNED.toInt(),
-    )
+    /**
+     * Emoji, symbol modifiers and invisible formatting characters: no language
+     * signal, but they do perturb the n-gram bag.
+     *
+     * From [DiscardTable] rather than `Character.getType`, because that answers
+     * from the host JDK's Unicode version and the model was trained on 13.0.0.
+     * The same jar used to give different answers on JDK 17 and JDK 26 — and on
+     * Android, on two phones with different platform ICU.
+     */
+    private fun isDiscarded(codePoint: Int): Boolean {
+        val ranges = DiscardTable.ranges
+        var low = 0
+        var high = ranges.size - 1
+        while (low <= high) {
+            val mid = (low + high) / 2
+            val (start, end) = ranges[mid]
+            when {
+                codePoint < start -> high = mid - 1
+                codePoint > end -> low = mid + 1
+                else -> return true
+            }
+        }
+        return false
+    }
 
     /**
      * Apply the frozen normalization pipeline.
@@ -89,7 +103,7 @@ public object Normalizer {
         var index = 0
         while (index < text.length) {
             val codePoint = text.codePointAt(index)
-            if (Character.getType(codePoint) !in DISCARDED) out.appendCodePoint(codePoint)
+            if (!isDiscarded(codePoint)) out.appendCodePoint(codePoint)
             index += Character.charCount(codePoint)
         }
         return out.toString()

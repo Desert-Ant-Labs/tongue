@@ -62,9 +62,23 @@ public enum Normalizer {
 
     // Emoji, symbol modifiers and invisible formatting characters: they carry no
     // language signal but do perturb the n-gram bag.
-    private static let discardedCategories: Set<Unicode.GeneralCategory> = [
-        .otherSymbol, .modifierSymbol, .format, .privateUse, .unassigned,
-    ]
+    //
+    // From the generated table rather than `generalCategory`, because that answers
+    // from the runtime's Unicode version and the model was trained on 13.0.0 — a
+    // newer OS would otherwise keep scalars the training data discarded. See
+    // DiscardTable.swift.
+    static func isDiscarded(_ scalar: Unicode.Scalar) -> Bool {
+        var low = 0
+        var high = discardedRanges.count - 1
+        while low <= high {
+            let mid = (low + high) / 2
+            let (start, end) = discardedRanges[mid]
+            if scalar.value < start { high = mid - 1 }
+            else if scalar.value > end { low = mid + 1 }
+            else { return true }
+        }
+        return false
+    }
 
     private static func pattern(_ source: String, ignoringCase: Bool = false) -> Pattern {
         // Force-try: these are literals in this file, so a bad pattern is a
@@ -102,7 +116,7 @@ public enum Normalizer {
         result = replacingMatches(mention, in: result)
         result = replacingMatches(digits, in: result)
         result = String(String.UnicodeScalarView(
-            result.unicodeScalars.filter { !discardedCategories.contains($0.properties.generalCategory) }
+            result.unicodeScalars.filter { !isDiscarded($0) }
         ))
         result = lowercasedMatchingPython(result)
         result = trimmed(replacingMatches(whitespace, in: result))

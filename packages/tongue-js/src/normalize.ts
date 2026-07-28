@@ -17,6 +17,8 @@
 //   Unicode property escapes. `\p{...}` needs the `u` flag; the general-category
 //     filter mirrors Python's `unicodedata.category`.
 
+import { DISCARD_RANGES } from "./discard-table.js";
+
 export const MAX_CHARACTERS = 512;
 
 // Order is part of the contract; see `normalize`.
@@ -34,7 +36,29 @@ const MENTION_RE = /[@#][\p{L}\p{N}_]+/gu;
 const DIGIT_RE = /\p{Nd}+/gu;
 // Emoji, symbol modifiers and invisible formatting characters: no language
 // signal, but they do perturb the n-gram bag. So, Sk, Cf, Co, Cn.
-const DISCARD_RE = /[\p{So}\p{Sk}\p{Cf}\p{Co}\p{Cn}]/gu;
+// From the pinned table rather than `\p{So}` and friends, because those answer
+// from the engine's Unicode version and the model was trained on 13.0.0 — a newer
+// V8 would otherwise keep scalars the training data discarded.
+function isDiscarded(codePoint: number): boolean {
+  let low = 0;
+  let high = DISCARD_RANGES.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const [start, end] = DISCARD_RANGES[mid]!;
+    if (codePoint < start) high = mid - 1;
+    else if (codePoint > end) low = mid + 1;
+    else return true;
+  }
+  return false;
+}
+
+function dropDiscarded(text: string): string {
+  let out = "";
+  for (const character of text) {
+    if (!isDiscarded(character.codePointAt(0)!)) out += character;
+  }
+  return out;
+}
 const WHITESPACE_RE = new RegExp(`[${WS}]+`, "gu");
 
 /**
@@ -51,7 +75,7 @@ const WHITESPACE_RE = new RegExp(`[${WS}]+`, "gu");
 export function normalize(text: string): string {
   let result = text.normalize("NFC");
   result = result.replace(URL_RE, " ").replace(EMAIL_RE, " ").replace(MENTION_RE, " ");
-  result = result.replace(DIGIT_RE, " ").replace(DISCARD_RE, "");
+  result = dropDiscarded(result.replace(DIGIT_RE, " "));
   result = result.toLowerCase();
   result = result.replace(WHITESPACE_RE, " ").trim();
   // Spread iterates by code point, so this truncates the way Python does.

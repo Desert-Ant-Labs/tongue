@@ -65,6 +65,11 @@ let package = Package(
             resources: [
                 .copy("Resources/tongue_int8.bin"),
                 .copy("Resources/tongue_meta.json"),
+                // Apple requires a privacy manifest from any SDK that collects data
+                // or calls a required-reason API; the usage turnstile does both.
+                // `.copy` rather than `.process` so the file lands at the bundle
+                // root, which is where Xcode's manifest aggregation looks.
+                .copy("Resources/PrivacyInfo.xcprivacy"),
             ]
         ),
         .target(

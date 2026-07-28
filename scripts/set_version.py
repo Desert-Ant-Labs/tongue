@@ -41,7 +41,15 @@ SITES: list[tuple[str, str, str]] = [
 ]
 
 # Prose that legitimately names a historical version rather than the current one.
-SWEEP_EXCLUDE = {"PUBLISHING.md", "docs/USAGE.md"}
+SWEEP_EXCLUDE = {
+    "PUBLISHING.md",
+    "docs/USAGE.md",
+    # A copy of docs/USAGE.md, shipped in the npm tarball. Its example body names
+    # a version in prose, like the original.
+    "packages/tongue-js/USAGE.md",
+    # Comments here explain past releases by number.
+    "mise.toml",
+}
 
 
 def main() -> int:

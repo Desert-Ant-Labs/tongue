@@ -1,7 +1,9 @@
 # Publishing
 
-**0.1.0 is released.** All three registries are live and were verified from a
-third-party consumer, not from this working copy:
+**Released.** All three registries are live and were verified from a third-party
+consumer, not from this working copy. Versions can differ per artifact by design:
+a tag only publishes the packages whose files actually changed, so the Swift and
+Maven artifacts stay where they are while npm moves on its own.
 
 | | coordinate | checked |
 |---|---|---|
@@ -113,6 +115,6 @@ billing data. The first genuine install will be the first genuine event.
 
 ## Version
 
-All three packages are at `0.1.0`, and the model they carry is the one published at
+The model every package carries is the one published at
 [huggingface.co/desert-ant-labs/tongue](https://huggingface.co/desert-ant-labs/tongue)
 (head-v14 with the tau=0.75 prior correction folded in).

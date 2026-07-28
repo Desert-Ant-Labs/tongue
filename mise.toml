@@ -75,7 +75,7 @@ depends = ["sync-usage-doc"]
 # `shell` is explicit on every task below that uses `set -euo pipefail`. mise runs
 # a task under /bin/sh unless told otherwise, and on Linux that is dash, which has
 # no `pipefail` — so these died with "Illegal option -o pipefail" on a CI runner
-# while passing on macOS. That is what stopped the 0.1.0 npm publish: publish-npm
+# while passing on macOS. That is what stopped the first npm publish: publish-npm
 # depends on test-js, test-js aborted before running anything, and the publish
 # never happened. CI did not catch it because its jobs call npm directly.
 description = "Golden vectors through the JavaScript port (browser + Node)"

@@ -1,6 +1,6 @@
 # tongue — Kotlin SDK (JVM + Android)
 
-On-device language identification for short text, across 83 languages.
+On-device language identification for short text, across 84 languages.
 
 ```kotlin
 val tongue = Tongue.bundled()

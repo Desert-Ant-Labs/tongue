@@ -1,5 +1,5 @@
 /**
- * tongue — on-device language identification for short text, across 83 languages.
+ * tongue — on-device language identification for short text, across 84 languages.
  *
  * ```ts
  * import { Tongue } from "@desert-ant-labs/tongue";

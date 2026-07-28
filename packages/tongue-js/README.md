@@ -1,6 +1,6 @@
 # tongue — JavaScript / TypeScript SDK
 
-On-device language identification for short text, across 83 languages. Runs in the
+On-device language identification for short text, across 84 languages. Runs in the
 browser and in Node from one import.
 
 ```ts

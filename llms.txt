@@ -1,0 +1,100 @@
+# tongue
+
+> On-device language identification for short text. Returns an ISO language code,
+> ranked alternatives with probabilities, and an explicit "not sure" signal.
+> 84 languages, one 2 MB model, three SDKs that return identical answers.
+> No network call and no inference runtime.
+
+This file exists for coding agents integrating the SDK. Everything below is
+verified against version 0.1.1; each snippet is executed in CI.
+
+## Facts
+
+- Languages: 84 codes. 59 decoded by the model, 25 settled by script alone.
+- Model: 2,104,940 bytes, int8, bundled in every package. Nothing is downloaded.
+- Latency: ~17 microseconds per detection (Node 23, Apple M-series).
+- Detection performs no I/O and no network access.
+- Licence: source-available, free below a threshold, commercial above it.
+- Repository: https://github.com/Desert-Ant-Labs/tongue
+
+## Install
+
+- Swift: `.package(url: "https://github.com/Desert-Ant-Labs/tongue.git", from: "0.1.1")`
+- Kotlin: `implementation("ai.desertant:tongue:0.1.1")`
+- JavaScript: `npm install @desert-ant-labs/tongue`
+
+## Minimal usage
+
+Swift:
+
+    import Tongue
+    let tongue = try Tongue()
+    tongue.detect("kann ich das haben").language   // "de"
+
+Kotlin (pass a Context on Android; omit it on a bare JVM):
+
+    import ai.desertant.tongue.Tongue
+    val tongue = Tongue.bundled(context)
+    tongue.detect("kann ich das haben").language   // "de"
+
+JavaScript (Node):
+
+    import { Tongue } from "@desert-ant-labs/tongue";
+    const tongue = await Tongue.load();
+    tongue.detect("kann ich das haben").language;  // "de"
+
+JavaScript (browser) — you must serve the model yourself and pass `from`:
+
+    const tongue = await Tongue.load({ from: "/models/tongue" });
+
+## Return shape
+
+`detect(text, topK = 3)` returns:
+
+- `language`: top ISO code, or null on empty input
+- `candidates`: ranked list, each with `language` and `probability`
+- `reliability`: one of `confident`, `likely`, `tentative`, `empty`
+- `isTooCloseToCall`: true when the top two are within 0.12
+- `normalized`: the text as the model saw it
+- `route.verdict`: `decisive`, `narrowing`, or `ambiguous`
+
+Note: the verdict enum lives on `route`, not directly on the detection.
+
+## Integration requirements that commonly break builds
+
+1. Swift needs 6.2 tooling (Xcode 26+). An older Xcode resolves the package and
+   then fails to build it, because a transitive dependency's manifest declares
+   swift-tools 6.2.
+2. In a browser, `Tongue.load()` without `from` resolves against the page URL and
+   fetches `index.html` on a single-page app. Copy both model files into a static
+   directory and pass `from` pointing at it:
+
+       cp node_modules/@desert-ant-labs/tongue/dist/tongue_int8.bin \
+          node_modules/@desert-ant-labs/tongue/dist/tongue_meta.json \
+          public/models/tongue/
+
+   Do not derive the base from a Vite `?url` import: `load` takes one directory,
+   and Vite inlines `tongue_meta.json` (2.4 kB, under the 4 kB inline limit) as a
+   `data:` URI while emitting the 2 MB `.bin` as a file, so the two disagree.
+3. On Android, pass the `Context` to `Tongue.bundled(context)`. Without it there
+   is nowhere durable to store the usage device id.
+
+## Correct handling of uncertainty
+
+Short text is often genuinely undecidable. Do not present `tentative` as an
+answer, and when `isTooCloseToCall` is true, show both candidates rather than
+picking one. `"la casa"` is equally Italian and Spanish; `"Samsung Galaxy"` is
+not language at all.
+
+## Privacy
+
+Detection never touches the network and no text ever leaves the device. A
+separate licence-metering event reports a generated UUID, the app identifier and
+a detection count — never text or results. Disable with the environment variable
+`DAL_USAGE_DISABLED=1`, or `globalThis.__dalUsageDisabled = "1"` in a browser.
+
+## Further reading
+
+- README: https://github.com/Desert-Ant-Labs/tongue/blob/main/README.md
+- Telemetry detail: https://github.com/Desert-Ant-Labs/tongue/blob/main/docs/USAGE.md
+- Model card, benchmarks, per-language accuracy: https://huggingface.co/desert-ant-labs/tongue

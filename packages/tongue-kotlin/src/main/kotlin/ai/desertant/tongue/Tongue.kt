@@ -3,7 +3,7 @@ package ai.desertant.tongue
 import ai.desertant.tongue.usage.UsageTurnstile
 
 /**
- * On-device language identification for short text, across 83 languages.
+ * On-device language identification for short text, across 84 languages.
  *
  * ```kotlin
  * val tongue = Tongue.bundled()

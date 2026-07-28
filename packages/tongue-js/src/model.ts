@@ -78,11 +78,21 @@ export class Weights {
   rank(text: string, allowed: ReadonlySet<string>, topK: number): Prediction[] {
     const { dimension } = this;
     const pooled = new Float32Array(dimension);
-    for (const [bucket, count] of buckets(text, this.numBuckets, this.orders)) {
+    // Ascending bucket order, and float32 arithmetic throughout. Both matter for
+    // matching the other ports: float addition is not associative, so the
+    // accumulation order is part of the answer, and Swift and Kotlin hold the
+    // scale and the running sums in float32 while JavaScript numbers are float64.
+    // `Math.fround` is what makes a JavaScript multiply round the way theirs does.
+    // See the note in Sources/Tongue/Model.swift.
+    const scale32 = Math.fround(this.scale);
+    const ordered = [...buckets(text, this.numBuckets, this.orders)].sort((a, b) => a[0] - b[0]);
+    for (const [bucket, count] of ordered) {
       const base = bucket * dimension;
-      const weight = count * this.scale;
+      const weight = Math.fround(count * scale32);
       for (let index = 0; index < dimension; index++) {
-        pooled[index]! += this.embedding[base + index]! * weight;
+        // pooled is a Float32Array, so the store already rounds; the multiply is
+        // what needs forcing.
+        pooled[index]! += Math.fround(this.embedding[base + index]! * weight);
       }
     }
 
@@ -93,7 +103,7 @@ export class Weights {
       let sum = this.linearBias[labelIndex]!;
       const base = labelIndex * dimension;
       for (let index = 0; index < dimension; index++) {
-        sum += this.linearWeight[base + index]! * pooled[index]!;
+        sum = Math.fround(sum + Math.fround(this.linearWeight[base + index]! * pooled[index]!));
       }
       logits.push([label, sum]);
     }
@@ -101,7 +111,12 @@ export class Weights {
 
     let maximum = -Infinity;
     for (const [, value] of logits) if (value > maximum) maximum = value;
-    const exponentiated = logits.map(([label, value]) => [label, Math.exp(value - maximum)] as const);
+    // The shift is a float32 subtraction in Swift and Kotlin (`Float - Float`,
+    // widened only for `exp`), so it has to be one here too — without the fround
+    // this line alone moved the answer by ~1e-10.
+    const exponentiated = logits.map(
+      ([label, value]) => [label, Math.exp(Math.fround(value - maximum))] as const,
+    );
     const total = exponentiated.reduce((sum, [, value]) => sum + value, 0);
     return exponentiated
       .sort((a, b) => b[1] - a[1])

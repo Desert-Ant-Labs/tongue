@@ -19,14 +19,22 @@
 export const MAX_CHARACTERS = 512;
 
 // Order is part of the contract; see `normalize`.
-const URL_RE = /(?:https?:\/\/|www\.)\S+/giu;
-const EMAIL_RE = /\S+@\S+\.\S+/gu;
+// Every class is spelled out. `\w`, `\d`, `\s` and `\S` are engine-defined and the
+// three engines behind this spec disagree. This port already wrote the mention and
+// digit classes out; `\s` and `\S` were still JavaScript's, which omits U+0085 and
+// U+001C-001F and adds U+FEFF. Python's definition is the spec, and the same
+// 29 scalars now appear in all three ports.
+const WS = "\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000";
+const NON_WS = `[^${WS}]`;
+
+const URL_RE = new RegExp(`(?:https?://|www\\.)${NON_WS}+`, "giu");
+const EMAIL_RE = new RegExp(`${NON_WS}+@${NON_WS}+\\.${NON_WS}+`, "gu");
 const MENTION_RE = /[@#][\p{L}\p{N}_]+/gu;
 const DIGIT_RE = /\p{Nd}+/gu;
 // Emoji, symbol modifiers and invisible formatting characters: no language
 // signal, but they do perturb the n-gram bag. So, Sk, Cf, Co, Cn.
 const DISCARD_RE = /[\p{So}\p{Sk}\p{Cf}\p{Co}\p{Cn}]/gu;
-const WHITESPACE_RE = /\s+/gu;
+const WHITESPACE_RE = new RegExp(`[${WS}]+`, "gu");
 
 /**
  * Apply the frozen normalization pipeline.

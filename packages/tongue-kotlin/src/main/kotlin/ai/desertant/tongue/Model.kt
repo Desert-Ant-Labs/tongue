@@ -109,7 +109,10 @@ internal class Weights(bytes: ByteArray, private val metadata: Metadata) {
     fun rank(text: String, allowed: Set<String>, topK: Int): List<Prediction> {
         val dimension = metadata.dimension
         val pooled = FloatArray(dimension)
-        for ((bucket, count) in Hashing.buckets(text, metadata.numBuckets, metadata.ngramOrders)) {
+        // Ascending bucket order: float addition is not associative, so the
+        // accumulation order is part of the answer. All three ports sort, so they
+        // pool identically. See the note in Sources/Tongue/Model.swift.
+        for ((bucket, count) in Hashing.buckets(text, metadata.numBuckets, metadata.ngramOrders).toSortedMap()) {
             val base = bucket * dimension
             val weight = count * metadata.embeddingScale
             for (index in 0 until dimension) {

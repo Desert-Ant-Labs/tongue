@@ -53,9 +53,16 @@ public enum Hashing {
     ) -> [Int: Int] {
         guard !text.isEmpty else { return [:] }
         var counts: [Int: Int] = [:]
-        for token in text.components(separatedBy: " ") where !token.isEmpty {
+        // Split on Unicode scalars, not Characters. `components(separatedBy:)` and
+        // `split` both work in grapheme clusters, and a space followed by a
+        // combining mark is ONE cluster — so a token starting with a mark (Devanagari
+        // virama, Arabic fatha, common once a hashtag's leading letters are stripped)
+        // silently swallowed its own boundary here, while Kotlin's `split(" ")` and
+        // JavaScript's `split(" ")` both cut on the code unit. Same normalized bytes,
+        // different tokens, different n-grams, different answer.
+        for token in text.unicodeScalars.split(separator: " ", omittingEmptySubsequences: true) {
             var marked = [boundaryStart]
-            marked.append(contentsOf: token.unicodeScalars)
+            marked.append(contentsOf: token)
             marked.append(boundaryEnd)
             for order in orders where order <= marked.count {
                 for start in 0...(marked.count - order) {

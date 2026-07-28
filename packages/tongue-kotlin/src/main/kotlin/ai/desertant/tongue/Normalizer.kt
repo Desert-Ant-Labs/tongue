@@ -27,11 +27,27 @@ public object Normalizer {
     public const val MAX_CHARACTERS: Int = 512
 
     // Order is part of the contract; see [normalize].
-    private val URL = Regex("""(?:https?://|www\.)\S+""", RegexOption.IGNORE_CASE)
-    private val EMAIL = Regex("""\S+@\S+\.\S+""")
-    private val MENTION = Regex("""[@#]\w+""")
-    private val DIGITS = Regex("""\d+""")
-    private val WHITESPACE = Regex("""\s+""")
+    //
+    // Every class is spelled out. `\w`, `\d`, `\s` and `\S` are engine-defined and
+    // the three engines behind this spec disagree. java.util.regex is the worst
+    // offender: without UNICODE_CHARACTER_CLASS they are ASCII-only, so this port
+    // used to leave Cyrillic hashtags and Devanagari digits in place and answered
+    // `ky` where Swift and JavaScript answered `en`. Python's definitions are the
+    // spec, so they are written out and the same three strings appear in all three
+    // ports.
+    //
+    //   \w  ->  [\p{L}\p{N}_]   verified equal to Python's `\w` over all 0x110000
+    //   \d  ->  \p{Nd}          verified equal to Python's `\d` (650 scalars)
+    //   \s  ->  the 29 scalars below, which is exactly Python's `\s`
+    internal const val WHITESPACE_CLASS: String =
+        "\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000"
+    private const val NON_WHITESPACE = "[^$WHITESPACE_CLASS]"
+
+    private val URL = Regex("""(?:https?://|www\.)$NON_WHITESPACE+""", RegexOption.IGNORE_CASE)
+    private val EMAIL = Regex("""$NON_WHITESPACE+@$NON_WHITESPACE+\.$NON_WHITESPACE+""")
+    private val MENTION = Regex("""[@#][\p{L}\p{N}_]+""")
+    private val DIGITS = Regex("""\p{Nd}+""")
+    private val WHITESPACE = Regex("[$WHITESPACE_CLASS]+")
 
     // Emoji, symbol modifiers and invisible formatting characters: no language
     // signal, but they do perturb the n-gram bag. Java's int constants for

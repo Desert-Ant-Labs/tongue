@@ -39,11 +39,25 @@ public enum Normalizer {
     // (documented thread-safe), the Android engine holds a String and a Bool, and
     // wasm is single-threaded. Compiling them once matters: rebuilding five per
     // call would dominate a detection that costs tens of microseconds.
-    private nonisolated(unsafe) static let url = pattern(#"(?:https?://|www\.)\S+"#, ignoringCase: true)
-    private nonisolated(unsafe) static let email = pattern(#"\S+@\S+\.\S+"#)
-    private nonisolated(unsafe) static let mention = pattern(#"[@#]\w+"#)
-    private nonisolated(unsafe) static let digits = pattern(#"\d+"#)
-    private nonisolated(unsafe) static let whitespace = pattern(#"\s+"#)
+    // Every class is spelled out. `\w`, `\d`, `\s` and `\S` are engine-defined and
+    // the three engines behind this spec disagree: ICU's `\w` includes combining
+    // marks (so `#नमस्ते` vanished entirely here while surviving elsewhere),
+    // java.util.regex's are ASCII-only without UNICODE_CHARACTER_CLASS, and
+    // JavaScript's `\s` omits U+0085 but adds U+FEFF. Python's are the spec, so
+    // they are written out and the same three strings appear in all three ports.
+    //
+    //   \w  ->  [\p{L}\p{N}_]   verified equal to Python's `\w` over all 0x110000
+    //   \d  ->  \p{Nd}          verified equal to Python's `\d` (650 scalars)
+    //   \s  ->  the 29 scalars below, which is exactly Python's `\s`
+    static let whitespaceClass =
+        "\u{09}-\u{0D}\u{1C}-\u{20}\u{85}\u{A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}"
+    private static let nonWhitespace = "[^\(whitespaceClass)]"
+
+    private nonisolated(unsafe) static let url = pattern(#"(?:https?://|www\.)"# + nonWhitespace + "+", ignoringCase: true)
+    private nonisolated(unsafe) static let email = pattern(nonWhitespace + "+@" + nonWhitespace + #"+\."# + nonWhitespace + "+")
+    private nonisolated(unsafe) static let mention = pattern(#"[@#][\p{L}\p{N}_]+"#)
+    private nonisolated(unsafe) static let digits = pattern(#"\p{Nd}+"#)
+    private nonisolated(unsafe) static let whitespace = pattern("[\(whitespaceClass)]+")
 
     // Emoji, symbol modifiers and invisible formatting characters: they carry no
     // language signal but do perturb the n-gram bag.
@@ -89,10 +103,45 @@ public enum Normalizer {
         result = String(String.UnicodeScalarView(
             result.unicodeScalars.filter { !discardedCategories.contains($0.properties.generalCategory) }
         ))
-        result = result.lowercased()
+        result = lowercasedMatchingPython(result)
         result = trimmed(replacingMatches(whitespace, in: result))
         guard result.unicodeScalars.count > maxCharacters else { return result }
         return String(String.UnicodeScalarView(result.unicodeScalars.prefix(maxCharacters)))
+    }
+
+    /// `lowercased()` with the Final_Sigma rule applied, which Swift's does not do.
+    ///
+    /// Python, JavaScript and Java all lowercase `ΟΔΟΣ` to `οδος`; Swift alone
+    /// gives `οδοσ`. Greek all-caps is ordinary text (headlines, signage), and
+    /// `Detection.normalized` is public API, so the odd one out has to be fixed
+    /// rather than documented.
+    ///
+    /// Unicode SpecialCasing: a capital sigma lowercases to final sigma when it is
+    /// preceded by a cased letter (ignoring case-ignorable scalars) and not
+    /// followed by one. Substituting before `lowercased()` rather than after means
+    /// sigmas already lowercase in the input are left exactly as the caller wrote
+    /// them, which is also what Python does.
+    private static func lowercasedMatchingPython(_ text: String) -> String {
+        let scalars = Array(text.unicodeScalars)
+        guard scalars.contains(where: { $0 == "\u{03A3}" }) else { return text.lowercased() }
+
+        var out = String.UnicodeScalarView()
+        out.reserveCapacity(scalars.count)
+        for (index, scalar) in scalars.enumerated() {
+            guard scalar == "\u{03A3}" else { out.append(scalar); continue }
+            out.append(isFinalSigma(scalars, at: index) ? "\u{03C2}" : "\u{03C3}")
+        }
+        return String(out).lowercased()
+    }
+
+    private static func isFinalSigma(_ scalars: [Unicode.Scalar], at index: Int) -> Bool {
+        var before = index - 1
+        while before >= 0, scalars[before].properties.isCaseIgnorable { before -= 1 }
+        guard before >= 0, scalars[before].properties.isCased else { return false }
+
+        var after = index + 1
+        while after < scalars.count, scalars[after].properties.isCaseIgnorable { after += 1 }
+        return after >= scalars.count || !scalars[after].properties.isCased
     }
 
     /// Hand-rolled so this file needs no Foundation: `Character.isWhitespace` is
@@ -107,6 +156,12 @@ public enum Normalizer {
 
     /// Whitespace tokens of already-normalized text.
     public static func tokens(_ text: String) -> [String] {
-        text.isEmpty ? [] : text.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
+        // Scalars, not Characters: a space followed by a combining mark is a single
+        // grapheme cluster, so `text.split` would not cut there. See Hashing.swift.
+        text.isEmpty
+            ? []
+            : text.unicodeScalars
+                .split(separator: " ", omittingEmptySubsequences: false)
+                .map { String(String.UnicodeScalarView($0)) }
     }
 }

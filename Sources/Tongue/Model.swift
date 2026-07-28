@@ -110,7 +110,14 @@ struct Weights: Sendable {
     /// and the remaining mass renormalizes over the candidates.
     func rank(_ text: String, restrictedTo allowed: Set<String>, topK: Int) -> [Prediction] {
         var pooled = [Float](repeating: 0, count: dimension)
-        for (bucket, count) in Hashing.buckets(text, numBuckets: numBuckets, orders: ngramOrders) {
+        // Ascending bucket order, not the hash table's. Float addition is not
+        // associative, so the accumulation order is part of the answer: Swift
+        // randomises Dictionary iteration per process, which made `detect` return
+        // different probabilities on every launch and flipped `language`,
+        // `reliability` and `isTooCloseToCall` on inputs near a threshold. Kotlin
+        // and JavaScript sort the same way, so all three now pool identically.
+        for (bucket, count) in Hashing.buckets(text, numBuckets: numBuckets, orders: ngramOrders)
+            .sorted(by: { $0.key < $1.key }) {
             let base = bucket * dimension
             let weight = Float(count) * scale
             for index in 0..<dimension {

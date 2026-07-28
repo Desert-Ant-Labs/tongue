@@ -93,6 +93,86 @@
     {
       "input": "gdzie jest dworzec",
       "output": "gdzie jest dworzec"
+    },
+    {
+      "input": "thanks for the tour @москва",
+      "output": "thanks for the tour"
+    },
+    {
+      "input": "great conference today #القاهرة",
+      "output": "great conference today"
+    },
+    {
+      "input": "hello #こんにちは world",
+      "output": "hello world"
+    },
+    {
+      "input": "hello #über world",
+      "output": "hello world"
+    },
+    {
+      "input": "hello #नमस्ते world",
+      "output": "hello ्ते world"
+    },
+    {
+      "input": "hello #ที่นี่ world",
+      "output": "hello ี่นี่ world"
+    },
+    {
+      "input": "hello #مَرْحَبا world",
+      "output": "hello َرْحَبا world"
+    },
+    {
+      "input": "hello #שָׁלוֹם world",
+      "output": "hello ָׁלוֹם world"
+    },
+    {
+      "input": "١٢٣٤ درهم",
+      "output": "درهم"
+    },
+    {
+      "input": "१२३ mera ghar",
+      "output": "mera ghar"
+    },
+    {
+      "input": "٠١٢٣٤٥٦٧٨٩",
+      "output": ""
+    },
+    {
+      "input": "๑๒๓ บาท",
+      "output": "บาท"
+    },
+    {
+      "input": "ΟΔΟΣ ΑΘΗΝΑΣ",
+      "output": "οδος αθηνας"
+    },
+    {
+      "input": "ΣΟΦΟΣ ΑΝΘΡΩΠΟΣ",
+      "output": "σοφος ανθρωπος"
+    },
+    {
+      "input": "ab",
+      "output": "a b"
+    },
+    {
+      "input": "a b",
+      "output": "a b"
+    },
+    {
+      "input": "a\u001cb",
+      "output": "a b"
+    },
+    {
+      "input": "a b c",
+      "output": "a b c"
+    },
+    {
+      "input": "a　b c d",
+      "output": "a b c d"
+    },
+    {
+      "input": "a﻿b",
+      "output": "ab"
     }
   ]
 }

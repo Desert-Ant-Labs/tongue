@@ -1,8 +1,15 @@
-# Publishing checklist
+# Publishing
 
-Everything below is built, tested and committed. The remaining steps create public
-artifacts with permanent names, so they are deliberately left for a maintainer to
-run rather than automated here.
+**0.1.0 is released.** All three registries are live and were verified from a
+third-party consumer, not from this working copy:
+
+| | coordinate | checked |
+|---|---|---|
+| Apple | `.package(url: "https://github.com/Desert-Ant-Labs/tongue.git", from: "0.1.0")` | fresh package resolved the tag, detected `de` |
+| Android · JVM | `ai.desertant:tongue:0.1.0` | resolved from Maven Central with no `mavenLocal()`, detected `de` |
+| Browser · Node | `@desert-ant-labs/tongue@0.1.0` | `npm install` from the registry, detected `de` and the tie case |
+
+What follows is the runbook for the next release.
 
 ## Verified locally
 

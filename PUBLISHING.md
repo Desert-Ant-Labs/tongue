@@ -14,6 +14,8 @@ run rather than automated here.
 | Console examples | `mise run examples` | both print identical probabilities |
 | iOS app | `xcodebuild -scheme TongueExample` | BUILD SUCCEEDED, `TongueExample.app` produced |
 | Android app | `./gradlew clean :app:assembleDebug` | 2.54 MB APK, model inside, **0** `lib/` entries |
+| Android device | `:app:installDebug` on API 36 | app runs; "kann ich das haben" → German, confident |
+| Android vectors | golden vectors via `app_process` on API 36 | 43 normalize + 19 detection cases, all pass |
 | CI | `.github/workflows/ci.yml` | four jobs; the table check now runs unconditionally |
 
 Consumer smoke tests both passed: `publishToMavenLocal` → `ai.desertant:tongue`
@@ -24,12 +26,19 @@ Cross-port parity is checked outside the shipped suites too: 53 diverse inputs g
 identical language, reliability, tie flag and 9-decimal probabilities on all three
 ports, and ten Swift launches over that corpus produce one hash.
 
-Not verified: the Android app on a real device or emulator. It builds and packages,
-and the Kotlin port's golden vectors pass on the JVM, but Android's `java.text`
-and `java.util.regex` are ICU-backed and could in principle differ. `./gradlew
-:app:installDebug` against the `Medium_Phone_API_36.0` AVD is the one-command check.
-emo covers this with an instrumented test on Firebase Test Lab, which needs the AGP
+The Android runtime is now covered directly. Android's `java.text` and
+`java.util.regex` are ICU-backed and its Unicode data moves with the platform, so
+"passes on the JVM" was never the same claim as "passes on a phone" — and the
+pinned discard table exists precisely because that difference was real. The same
+jar was dexed and run on an API 36 emulator through `app_process`, replaying the
+same vector files: 43 normalize cases and 19 detection cases, all passing. emo
+covers this with a Firebase Test Lab instrumented test, which needs the AGP
 `androidTest` setup this package deliberately does not have.
+
+Still unverified: no usage event has ever been delivered end to end to the ingest
+endpoint. Every run here sets `DAL_USAGE_DISABLED=1`, because emitting one would
+put this machine into real billing data. The state machine is pinned by vectors
+and the wire bytes are asserted byte for byte in two ports; the round trip is not.
 
 ## Remaining steps
 

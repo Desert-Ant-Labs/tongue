@@ -34,7 +34,10 @@ SITES: list[tuple[str, str, str]] = [
     ("README.md", r'\.package\(url: "https://github\.com/Desert-Ant-Labs/tongue\.git", from: "(.+)"\)', "SwiftPM snippet"),
     ("packages/tongue-kotlin/README.md", r'implementation\("ai\.desertant:tongue:(.+)"\)', "Gradle snippet"),
     ("Examples/TongueAndroidExample/app/build.gradle.kts", r'implementation\("ai\.desertant:tongue:(.+)"\)', "Android example dependency"),
-    ("Examples/TongueAndroidExample/README.md", r'`ai\.desertant:tongue:(.+)`', "Android example README"),
+    # Examples/TongueAndroidExample/README.md deliberately names the coordinate
+    # without a version ("Until ai.desertant:tongue is on Maven Central…"), so
+    # there is nothing here to rewrite. The sweep below still covers it: if a
+    # version ever appears there, the run fails until it is listed.
 ]
 
 # Prose that legitimately names a historical version rather than the current one.

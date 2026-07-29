@@ -6,7 +6,7 @@
 > No network call and no inference runtime.
 
 This file exists for coding agents integrating the SDK. Everything below is
-verified against version 0.1.1; each snippet is executed in CI.
+verified against version 0.1.2; each snippet is executed in CI.
 
 ## Facts
 
@@ -19,8 +19,8 @@ verified against version 0.1.1; each snippet is executed in CI.
 
 ## Install
 
-- Swift: `.package(url: "https://github.com/Desert-Ant-Labs/tongue.git", from: "0.1.1")`
-- Kotlin: `implementation("ai.desertant:tongue:0.1.1")`
+- Swift: `.package(url: "https://github.com/Desert-Ant-Labs/tongue.git", from: "0.1.2")`
+- Kotlin: `implementation("ai.desertant:tongue:0.1.2`
 - JavaScript: `npm install @desert-ant-labs/tongue`
 
 ## Minimal usage

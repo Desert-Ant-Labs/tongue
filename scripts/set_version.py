@@ -32,6 +32,11 @@ SITES: list[tuple[str, str, str]] = [
     ),
     ("packages/tongue-js/src/index.ts", r'^const SDK_VERSION = "(.+)";$', "JS telemetry sdk.version"),
     ("README.md", r'\.package\(url: "https://github\.com/Desert-Ant-Labs/tongue\.git", from: "(.+)"\)', "SwiftPM snippet"),
+    ("README.md", r'· version (.+)\*', "README last-updated line"),
+    ("README.md", r'implementation\("ai\.desertant:tongue:(.+)"\)', "README Gradle snippet"),
+    ("llms.txt", r'verified against version (.+);', "llms.txt version statement"),
+    ("llms.txt", r'from: "(.+)"', "llms.txt SwiftPM line"),
+    ("llms.txt", r'ai\.desertant:tongue:(.+)`', "llms.txt Gradle line"),
     ("packages/tongue-kotlin/README.md", r'implementation\("ai\.desertant:tongue:(.+)"\)', "Gradle snippet"),
     ("Examples/TongueAndroidExample/app/build.gradle.kts", r'implementation\("ai\.desertant:tongue:(.+)"\)', "Android example dependency"),
     # Examples/TongueAndroidExample/README.md deliberately names the coordinate
@@ -103,7 +108,7 @@ def sweep(previous: set[str], version: str) -> list[tuple[str, int, str]]:
     skip_files = {"packages/tongue-js/package-lock.json"}
     hits: list[tuple[str, int, str]] = []
     for path in ROOT.rglob("*"):
-        if not path.is_file() or path.suffix not in {".md", ".kts", ".ts", ".kt", ".swift", ".json", ".toml", ".yml"}:
+        if not path.is_file() or path.suffix not in {".md", ".kts", ".ts", ".kt", ".swift", ".json", ".toml", ".yml", ".txt"}:
             continue
         if any(part in skip_dirs for part in path.parts):
             continue

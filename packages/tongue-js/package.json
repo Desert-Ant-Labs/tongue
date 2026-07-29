@@ -1,7 +1,8 @@
 {
   "name": "@desert-ant-labs/tongue",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "On-device language identification for short text, across 84 languages. Pure JavaScript: no wasm, no inference runtime.",
+  "author": "Gabriel Bueno <gabesuit@gmail.com>",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

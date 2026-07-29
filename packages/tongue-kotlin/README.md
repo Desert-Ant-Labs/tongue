@@ -22,7 +22,7 @@ Works unchanged on the JVM and on Android, using only `java.text.Normalizer` and
 ## Install
 
 ```kotlin
-dependencies { implementation("ai.desertant:tongue:0.1.1") }
+dependencies { implementation("ai.desertant:tongue:0.1.2") }
 ```
 
 ## Saying "I don't know"

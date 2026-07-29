@@ -25,7 +25,7 @@ tongue.detect("kann ich das haben").language   // "de"
 Platforms: iOS 16+ · macOS 13+ · tvOS 16+ · watchOS 9+ · visionOS 1+ · Android 24+ ·
 JVM 17+ · browsers · Node 18+ · Deno · Bun.
 
-*Last updated: 28 July 2026 · version 0.1.1*
+*Last updated: 28 July 2026 · version 0.1.2*
 
 ---
 
@@ -37,7 +37,7 @@ Each block below is complete and standalone. Copy one.
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/Desert-Ant-Labs/tongue.git", from: "0.1.1")
+.package(url: "https://github.com/Desert-Ant-Labs/tongue.git", from: "0.1.2")
 ```
 
 ```swift
@@ -61,7 +61,7 @@ it. This is the single most common setup failure.
 
 ```kotlin
 // build.gradle.kts
-implementation("ai.desertant:tongue:0.1.1")
+implementation("ai.desertant:tongue:0.1.2")
 ```
 
 ```kotlin
@@ -225,7 +225,7 @@ rejects the import with TS1479 even though the runtime is fine. On Node older
 than 20.19, use a dynamic `import()`.
 
 **Does it work with Next.js, webpack, Create React App?**
-Yes, from 0.1.1. The browser build contains no Node built-ins.
+Yes. The browser build contains no Node built-ins.
 
 **How big is it really?**
 The model is 2,104,940 bytes on every platform. An Android APK grows ~2.5 MB

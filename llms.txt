@@ -78,6 +78,10 @@ Note: the verdict enum lives on `route`, not directly on the detection.
    `data:` URI while emitting the 2 MB `.bin` as a file, so the two disagree.
 3. On Android, pass the `Context` to `Tongue.bundled(context)`. Without it there
    is nowhere durable to store the usage device id.
+4. The npm package is ESM-only. `require()` works natively on Node 20.19+. For
+   TypeScript in a CommonJS project, set `"moduleResolution": "nodenext"`
+   (TS 5.8+); the older `node16` setting fails with TS1479 even though the
+   runtime works. On Node older than 20.19, use dynamic `import()`.
 
 ## Correct handling of uncertainty
 

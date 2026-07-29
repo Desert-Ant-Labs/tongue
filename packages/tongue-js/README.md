@@ -69,6 +69,14 @@ rather than as an answer, and ask for more text where the product allows it.
 `normalize`, `route`, `fnv1a` and `buckets` are also exported, for anyone
 reproducing the feature pipeline.
 
+## CommonJS and TypeScript
+
+The package is ESM-only. `require()` of it works natively on Node 20.19+, so a
+CJS server needs no changes at runtime. TypeScript in a CJS project should set
+`"moduleResolution": "nodenext"` (TS 5.8+) — the older `node16` setting rejects
+the import with TS1479 even though the emitted `require()` runs. On Node older
+than 20.19, use a dynamic `import()`.
+
 ## Serving the model in a browser
 
 On Node the weights load out of the package with no configuration. A bundler does

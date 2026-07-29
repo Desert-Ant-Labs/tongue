@@ -217,6 +217,13 @@ You are on Swift 6.1 or older. The package needs 6.2 tooling — Xcode 26+.
 In a browser it needs `{ from: "/path/where/you/serve/the/model" }`. See the
 JavaScript section above.
 
+**Can I use it from a CommonJS project?**
+Yes on Node 20.19+, where `require()` of an ES module works natively — the
+package is ESM-only but needs no wrapper. For **TypeScript** in a CJS project,
+set `"moduleResolution": "nodenext"` (TS 5.8+): the older `node16` setting
+rejects the import with TS1479 even though the runtime is fine. On Node older
+than 20.19, use a dynamic `import()`.
+
 **Does it work with Next.js, webpack, Create React App?**
 Yes, from 0.1.1. The browser build contains no Node built-ins.
 
